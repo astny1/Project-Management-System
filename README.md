@@ -74,3 +74,26 @@ Or use the included **`render.yaml`** blueprint for one-click setup.
 ## Reset Demo Data
 
 Delete `growthhive.db` and restart the app to re-seed sample projects.
+
+## Start fresh with your own data (no demo projects)
+
+Stop the app if it is running, then:
+
+```powershell
+cd "D:\MY PROJECTS\Project Mnagement"
+python reset_db.py
+python app.py
+```
+
+This **deletes everything** and creates an empty database with:
+- Your **admin login** only (`astone.mwamba@growhivemedea.com` / `admin123`)
+- **No** demo projects, clients, expenses, or investments
+- Bank balance and reserves at **K 0.00**
+
+Add `--team` to also create empty sales & project manager accounts:
+
+```powershell
+python reset_db.py --team
+```
+
+Change your password in **Settings** after logging in.

@@ -119,6 +119,24 @@ Change passwords in **Settings** after first login.
 
 ---
 
+## Reset Render database (remove demo data)
+
+After deploy, new installs use an **empty** database (no demo projects). To **wipe** an existing Render database:
+
+1. Push the latest code to GitHub (includes `reset_db.py` + updated `wsgi.py`)
+2. In Render → your service → **Environment**
+3. Add variable: `RESET_DATABASE` = `1`
+4. Click **Manual Deploy** → **Deploy latest commit**
+5. Wait until live, log in — empty database, admin only
+6. **Remove** `RESET_DATABASE` from Environment (or every restart wipes your data!)
+7. Save and deploy once more
+
+Optional: add `INCLUDE_TEAM` = `1` to also create sales & PM login accounts.
+
+Login after reset: `astone.mwamba@growhivemedea.com` / `admin123` — change password in Settings.
+
+---
+
 ## Security checklist
 
 - [ ] Change default passwords

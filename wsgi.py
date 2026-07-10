@@ -1,9 +1,6 @@
 """Production entrypoint for Gunicorn (Render, etc.)."""
-from database import init_db, migrate_db
-from seed import seed
+from reset_db import bootstrap_production
 
-init_db()
-migrate_db()
-seed()
+bootstrap_production()
 
 from app import app  # noqa: E402,F401
