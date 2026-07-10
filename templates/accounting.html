@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+{% block title %}Accounting{% endblock %}
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+{% block content %}
+<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+  <div>
+    <h1 class="text-2xl font-bold text-slate-900">Accounting & Visualization</h1>
+    <p class="text-slate-500 text-sm mt-1">Monthly profit, targets & investment returns (ZMW)</p>
+  </div>
+  <div class="flex flex-wrap items-center gap-2">
+    <form method="GET" class="flex gap-2">
+      <input type="number" name="year" value="{{ year }}" min="2020" max="2035" class="w-24 px-3 py-2 border rounded-lg text-sm">
+      <button type="submit" class="bg-hive-600 text-white px-4 py-2 rounded-lg text-sm">View Year</button>
+    </form>
+  </div>
+</div>
+
+{% if can_access('reports') %}
+<div class="bg-gradient-to-r from-hive-800 to-hive-700 rounded-xl p-5 mb-6 text-white shadow-lg">
+  <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
+    <div>
+      <h2 class="font-bold text-lg">Generate Financial Report</h2>
+      <p class="text-hive-100 text-sm mt-1">Download a formatted PDF with company logo — choose a month or full year.</p>
+    </div>
+    <form id="report-form" class="flex flex-wrap items-end gap-2 bg-white/10 rounded-xl p-3 border border-white/20">
+      <div>
+        <label class="block text-[10px] uppercase text-hive-200 mb-1">Report Type</label>
+        <select name="scope" id="report-scope" class="px-3 py-2 rounded-lg text-sm text-slate-800 border-0 min-w-[130px]">
+          <option value="month">Single Month</option>
+          <option value="year">Full Year</option>
+        </select>
+      </div>
+      <div id="report-month-wrap">
+        <label class="block text-[10px] uppercase text-hive-200 mb-1">Month</label>
+        <select name="month" id="report-month" class="px-3 py-2 rounded-lg text-sm text-slate-800 border-0 min-w-[110px]">
+          {% for i in range(1, 13) %}
+          <option value="{{ i }}" {% if i == current_month %}selected{% endif %}>{{ ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][i-1] }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="block text-[10px] uppercase text-hive-200 mb-1">Year</label>
+        <input type="number" name="year" id="report-year" value="{{ year }}" min="2020" max="2035" class="w-24 px-3 py-2 rounded-lg text-sm text-slate-800 border-0">
+      </div>
+      <a id="report-download" href="#"
+        class="bg-white text-hive-800 hover:bg-hive-50 font-semibold px-5 py-2 rounded-lg text-sm shadow transition inline-flex items-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        Generate PDF
+      </a>
+    </form>
+  </div>
+</div>
+<script>
+(function () {
+  var scope = document.getElementById('report-scope');
+  var monthWrap = document.getElementById('report-month-wrap');
+  var month = document.getElementById('report-month');
+  var year = document.getElementById('report-year');
+  var link = document.getElementById('report-download');
+  var base = {{ url_for('accounting_report_pdf') | tojson }};
+
+  function update() {
+    var isMonth = scope.value === 'month';
+    monthWrap.style.display = isMonth ? 'block' : 'none';
+    var url = base + '?scope=' + scope.value + '&year=' + encodeURIComponent(year.value);
+    if (isMonth) url += '&month=' + encodeURIComponent(month.value);
+    link.href = url;
+  }
+  scope.addEventListener('change', update);
+  month.addEventListener('change', update);
+  year.addEventListener('change', update);
+  update();
+})();
+</script>
+{% endif %}
+
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+  <div class="bg-white rounded-xl border p-4">
+    <div class="text-[10px] uppercase text-slate-500">YTD Total Revenue</div>
+    <div class="text-xl font-bold text-emerald-600">{{ ytd_revenue | money }}</div>
+    <div class="text-[10px] text-slate-400">Projects {{ ytd_project_revenue | money }} + Investments {{ ytd_investment | money }}</div>
+  </div>
+  <div class="bg-white rounded-xl border p-4">
+    <div class="text-[10px] uppercase text-slate-500">YTD Profit</div>
+    <div class="text-xl font-bold text-hive-700">{{ ytd_profit | money }}</div>
+    <div class="text-[10px] text-slate-400">Includes investment profit</div>
+  </div>
+  <div class="bg-white rounded-xl border p-4">
+    <div class="text-[10px] uppercase text-slate-500">Profit Target</div>
+    <div class="text-xl font-bold text-amber-600">{{ ytd_target | money }}</div>
+    <div class="text-[10px] text-slate-400">Monthly goal: {{ company.monthly_profit_target | money }}</div>
+  </div>
+  <div class="bg-white rounded-xl border p-4">
+    <div class="text-[10px] uppercase text-slate-500">Investment Returns</div>
+    <div class="text-xl font-bold text-blue-600">{{ ytd_investment | money }}</div>
+    <div class="text-[10px] text-slate-400">Goal: {{ company.yearly_investment_goal | money }}/yr</div>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+  <div class="bg-white rounded-xl border p-5">
+    <h2 class="font-semibold text-sm mb-4">Monthly Profit vs Target</h2>
+    <canvas id="profitChart" height="200"></canvas>
+  </div>
+  <div class="bg-white rounded-xl border p-5">
+    <h2 class="font-semibold text-sm mb-4">Revenue vs Expenses</h2>
+    <canvas id="revenueChart" height="200"></canvas>
+  </div>
+</div>
+
+<div class="bg-white rounded-xl border shadow-sm overflow-hidden mb-6">
+  <div class="px-5 py-3 border-b"><h2 class="font-semibold text-sm">Monthly Breakdown — {{ year }}</h2></div>
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="bg-slate-50 text-[10px] uppercase text-slate-500">
+        <tr>
+          <th class="text-left px-5 py-2">Month</th>
+          <th class="text-right px-3 py-2">Project Rev.</th>
+          <th class="text-right px-3 py-2">Inv. Profit</th>
+          <th class="text-right px-3 py-2">Total Rev.</th>
+          <th class="text-right px-3 py-2">Expenses</th>
+          <th class="text-right px-3 py-2">Profit</th>
+          <th class="text-right px-3 py-2">Target</th>
+          <th class="text-center px-5 py-2">Status</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y">
+        {% for m in months %}
+        <tr>
+          <td class="px-5 py-2 font-medium">{{ ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m.month-1] }}</td>
+          <td class="px-3 py-2 text-right text-emerald-600">{{ m.project_revenue | money }}</td>
+          <td class="px-3 py-2 text-right text-indigo-600">{{ m.investment_profit | money }}</td>
+          <td class="px-3 py-2 text-right font-medium text-emerald-700">{{ m.revenue | money }}</td>
+          <td class="px-3 py-2 text-right text-red-500">{{ m.expenses | money }}</td>
+          <td class="px-3 py-2 text-right font-bold">{{ m.profit | money }}</td>
+          <td class="px-3 py-2 text-right text-amber-600">{{ m.profit_target | money }}</td>
+          <td class="px-5 py-2 text-center">
+            {% if m.profit >= m.profit_target and m.profit_target > 0 %}
+            <span class="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">On Target</span>
+            {% elif m.profit > 0 %}
+            <span class="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Below Target</span>
+            {% else %}
+            <span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if g.user.role == 'admin' %}
+<div class="bg-white rounded-xl border p-5">
+  <h3 class="font-semibold text-sm mb-3">Set Monthly Targets</h3>
+  <form method="POST" action="{{ url_for('update_targets') }}" class="grid grid-cols-2 sm:grid-cols-5 gap-2">
+    <input type="hidden" name="year" value="{{ year }}">
+    <select name="month" class="px-3 py-2 border rounded-lg text-sm">
+      {% for i in range(1,13) %}<option value="{{ i }}">{{ ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][i-1] }}</option>{% endfor %}
+    </select>
+    <input name="revenue_target" type="number" step="0.01" placeholder="Revenue target" class="px-3 py-2 border rounded-lg text-sm">
+    <input name="profit_target" type="number" step="0.01" placeholder="Profit target" class="px-3 py-2 border rounded-lg text-sm">
+    <input name="investment_target" type="number" step="0.01" placeholder="Investment target" class="px-3 py-2 border rounded-lg text-sm">
+    <button type="submit" class="bg-hive-600 text-white rounded-lg text-sm font-medium">Save Targets</button>
+  </form>
+</div>
+{% endif %}
+
+<script>
+const labels = {{ chart_labels | safe }};
+new Chart(document.getElementById('profitChart'), {
+  type: 'bar',
+  data: {
+    labels,
+    datasets: [
+      { label: 'Profit (ZMW)', data: {{ chart_profit | safe }}, backgroundColor: '#0d9488' },
+      { label: 'Target (ZMW)', data: {{ chart_target | safe }}, backgroundColor: '#fbbf24' }
+    ]
+  },
+  options: { responsive: true, scales: { y: { beginAtZero: true } } }
+});
+new Chart(document.getElementById('revenueChart'), {
+  type: 'line',
+  data: {
+    labels,
+    datasets: [
+      { label: 'Revenue', data: {{ chart_revenue | safe }}, borderColor: '#10b981', tension: 0.3 },
+      { label: 'Expenses', data: {{ chart_expenses | safe }}, borderColor: '#ef4444', tension: 0.3 },
+      { label: 'Investment Returns', data: {{ chart_investment | safe }}, borderColor: '#3b82f6', tension: 0.3 }
+    ]
+  },
+  options: { responsive: true, scales: { y: { beginAtZero: true } } }
+});
+</script>
+{% endblock %}

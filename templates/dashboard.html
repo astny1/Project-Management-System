@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block head %}
+<style>
+  .stat-card { transition: transform 0.2s, box-shadow 0.2s; }
+  .stat-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(15,118,110,0.12); }
+</style>
+{% endblock %}
+{% block content %}
+
+<!-- Hero -->
+<div class="relative overflow-hidden rounded-xl sm:rounded-2xl bg-gradient-to-br from-hive-800 via-hive-700 to-slate-900 text-white p-4 sm:p-6 lg:p-8 mb-6 shadow-xl">
+  <div class="absolute top-0 right-0 w-48 sm:w-64 h-48 sm:h-64 bg-hive-500/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4"></div>
+  <div class="relative flex flex-col gap-3 sm:gap-4">
+    <div class="flex items-start justify-between gap-2 sm:gap-4">
+      <div class="min-w-0 flex-1">
+        <p class="text-hive-200/90 text-[10px] sm:text-xs uppercase tracking-wide font-medium truncate">
+          Welcome, {{ g.user.name }}
+        </p>
+        <h1 class="text-base sm:text-2xl lg:text-3xl font-bold mt-0.5 leading-snug tracking-tight truncate sm:whitespace-normal">
+          {{ company.company_name }}
+        </h1>
+      </div>
+      <div class="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg px-2 py-1.5 sm:px-3 sm:py-2 text-right shrink-0">
+        <div id="live-time" class="text-[11px] sm:text-base lg:text-lg font-semibold tabular-nums tracking-tight leading-none">--:--:--</div>
+        <div id="live-date" class="text-hive-200/90 text-[8px] sm:text-[10px] lg:text-xs mt-0.5 leading-tight max-w-[72px] sm:max-w-none">Loading...</div>
+      </div>
+    </div>
+    <p class="text-hive-100/70 text-[11px] sm:text-sm leading-relaxed max-w-lg hidden sm:block">
+      {% if g.user.role == 'sales_manager' %}Sales hub — projects, clients, finances & reports.
+      {% elif g.user.role == 'project_manager' %}Operations hub — projects, timeline & maintenance.
+      {% else %}Your command center — projects, clients, finances & CRM.{% endif %}
+    </p>
+    <div class="flex flex-wrap gap-2 pt-0.5">
+      {% if can_access('projects_create') %}
+      <a href="{{ url_for('project_new') }}" class="bg-white text-hive-800 hover:bg-hive-50 font-semibold px-3 py-2 sm:px-5 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm shadow transition">+ New Project</a>
+      {% endif %}
+      {% if can_access('maintenance_view') %}
+      <a href="{{ url_for('maintenance') }}" class="bg-hive-600/50 hover:bg-hive-600 border border-hive-400/30 text-white font-semibold px-3 py-2 sm:px-5 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm transition">Maintenance</a>
+      {% elif can_access('clients_view') %}
+      <a href="{{ url_for('clients') }}" class="bg-hive-600/50 hover:bg-hive-600 border border-hive-400/30 text-white font-semibold px-3 py-2 sm:px-5 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm transition">Clients</a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  function tick() {
+    const now = new Date();
+    const timeEl = document.getElementById('live-time');
+    const dateEl = document.getElementById('live-date');
+    if (!timeEl || !dateEl) return;
+    timeEl.textContent = now.toLocaleTimeString(undefined, {
+      hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+    });
+    const narrow = window.innerWidth < 640;
+    dateEl.textContent = narrow
+      ? now.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })
+      : now.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  }
+  tick();
+  setInterval(tick, 1000);
+  window.addEventListener('resize', tick);
+})();
+</script>
+
+<!-- Stats -->
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+  {% if can_access('finances_view') or can_access('reserves_view') %}
+  <div class="stat-card bg-white rounded-2xl border border-slate-100 p-5 shadow-sm">
+    <div class="flex items-center justify-between">
+      <div class="w-9 h-9 rounded-xl bg-hive-50 flex items-center justify-center text-hive-600 text-lg">🏦</div>
+      <span class="text-[10px] text-slate-400 uppercase font-medium">Stanbic Bank</span>
+    </div>
+    <div class="text-2xl font-bold text-hive-700 mt-3">{{ stats.position.bank_balance | money }}</div>
+    <div class="text-[11px] text-slate-400 mt-1">Main company account</div>
+  </div>
+  <div class="stat-card bg-white rounded-2xl border border-slate-100 p-5 shadow-sm">
+    <div class="flex items-center justify-between">
+      <div class="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center text-lg">📈</div>
+      <span class="text-[10px] text-slate-400 uppercase font-medium">Total Profit</span>
+    </div>
+    <div class="text-2xl font-bold text-emerald-600 mt-3">{{ stats.profit | money }}</div>
+    <div class="text-[11px] text-slate-400 mt-1">Revenue {{ stats.total_revenue | money }} incl. investments</div>
+  </div>
+  {% endif %}
+  <div class="stat-card bg-white rounded-2xl border border-slate-100 p-5 shadow-sm">
+    <div class="flex items-center justify-between">
+      <div class="w-9 h-9 rounded-xl bg-violet-50 flex items-center justify-center text-lg">👥</div>
+      <span class="text-[10px] text-slate-400 uppercase font-medium">Clients</span>
+    </div>
+    <div class="text-2xl font-bold text-violet-600 mt-3">{{ clients|length }}</div>
+    <div class="text-[11px] text-slate-400 mt-1">{% if can_access('finances_view') %}{{ stats.total_contracts | money }} in contracts{% else %}Across all projects{% endif %}</div>
+  </div>
+  <div class="stat-card bg-white rounded-2xl border border-slate-100 p-5 shadow-sm">
+    <div class="flex items-center justify-between">
+      <div class="w-9 h-9 rounded-xl bg-amber-50 flex items-center justify-center text-lg">📋</div>
+      <span class="text-[10px] text-slate-400 uppercase font-medium">Projects</span>
+    </div>
+    <div class="text-2xl font-bold text-slate-900 mt-3">{{ stats.ongoing + stats.pending + stats.completed }}</div>
+    <div class="flex gap-2 mt-2">
+      <span class="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">{{ stats.ongoing }} live</span>
+      <span class="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">{{ stats.pending }} pending</span>
+    </div>
+  </div>
+</div>
+
+<!-- Quick modules -->
+{% if g.user.role == 'admin' %}
+<div class="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-6">
+  <a href="{{ url_for('reserves') }}" class="bg-white border border-slate-100 rounded-xl p-3 text-center hover:border-blue-300 hover:shadow-md transition shadow-sm text-xs font-semibold text-slate-700 hover:text-blue-700">Reserves</a>
+  <a href="{{ url_for('investments') }}" class="bg-white border border-slate-100 rounded-xl p-3 text-center hover:border-indigo-300 hover:shadow-md transition shadow-sm text-xs font-semibold text-slate-700 hover:text-indigo-700">Investments</a>
+  <a href="{{ url_for('accounting') }}" class="bg-white border border-slate-100 rounded-xl p-3 text-center hover:border-emerald-300 hover:shadow-md transition shadow-sm text-xs font-semibold text-slate-700 hover:text-emerald-700">Accounting</a>
+  <a href="{{ url_for('company_expenses') }}" class="bg-white border border-slate-100 rounded-xl p-3 text-center hover:border-red-300 hover:shadow-md transition shadow-sm text-xs font-semibold text-slate-700 hover:text-red-700">Expenses</a>
+  <a href="{{ url_for('auditing') }}" class="bg-white border border-slate-100 rounded-xl p-3 text-center hover:border-slate-300 hover:shadow-md transition shadow-sm text-xs font-semibold text-slate-700">Auditing</a>
+  <a href="{{ url_for('clients') }}" class="bg-white border border-slate-100 rounded-xl p-3 text-center hover:border-violet-300 hover:shadow-md transition shadow-sm text-xs font-semibold text-slate-700 hover:text-violet-700">Clients</a>
+</div>
+{% endif %}
+
+<div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+
+  <!-- Projects -->
+  <div class="xl:col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+    <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+      <div>
+        <h2 class="font-bold text-slate-900">Active Projects</h2>
+        <p class="text-[11px] text-slate-400 mt-0.5">Click for full project details</p>
+      </div>
+      {% if can_access('projects_create') %}
+      <a href="{{ url_for('project_new') }}" class="text-xs text-hive-600 hover:underline font-medium">+ Add</a>
+      {% endif %}
+    </div>
+    {% if projects %}
+    <div class="divide-y divide-slate-50">
+      {% for p in projects[:6] %}
+      <a href="{{ url_for('project_detail', project_id=p.id) }}" class="flex items-center gap-4 px-5 py-4 hover:bg-slate-50 transition group">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-hive-100 to-hive-50 flex items-center justify-center text-hive-700 font-bold text-sm shrink-0">
+          {{ p.client_company[0] }}
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="font-semibold text-sm text-slate-900 group-hover:text-hive-700 truncate">{{ p.name }}</div>
+          <div class="text-[11px] text-slate-400">{{ p.client_company }} · {{ p.client_location or 'Zambia' }}</div>
+        </div>
+        <div class="text-right shrink-0">
+          {% if can_access('finances_view') %}
+          <div class="text-sm font-bold text-slate-800">{{ p.contract_amount | money }}</div>
+          {% endif %}
+          {% if p.status == 'ongoing' %}<span class="text-[10px] text-emerald-600 font-medium">● Ongoing</span>
+          {% elif p.status == 'pending' %}<span class="text-[10px] text-amber-600 font-medium">● Pending</span>
+          {% else %}<span class="text-[10px] text-slate-400 font-medium">● Done</span>{% endif %}
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+    {% if projects|length > 6 %}
+    <div class="px-5 py-3 border-t bg-slate-50 text-center">
+      <span class="text-xs text-slate-500">{{ projects|length - 6 }} more projects in CRM</span>
+    </div>
+    {% endif %}
+    {% else %}
+    <p class="px-5 py-12 text-center text-slate-400 text-sm">No projects yet.</p>
+    {% endif %}
+  </div>
+
+  <!-- CRM Clients sidebar -->
+  <div class="space-y-4">
+    <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+      <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-violet-50 to-white">
+        <div>
+          <h2 class="font-bold text-slate-900">Clients CRM</h2>
+          <p class="text-[11px] text-slate-400">{{ clients|length }} client companies</p>
+        </div>
+        <a href="{{ url_for('clients') }}" class="text-xs bg-violet-600 text-white px-3 py-1.5 rounded-lg font-medium hover:bg-violet-700 transition">View All</a>
+      </div>
+      <div class="divide-y divide-slate-50 max-h-80 overflow-y-auto">
+        {% for c in clients[:5] %}
+        <a href="{{ url_for('client_detail', slug=c.slug) }}" class="flex items-start gap-3 px-5 py-3.5 hover:bg-violet-50/50 transition">
+          <div class="w-9 h-9 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center font-bold text-sm shrink-0">
+            {{ c.company[0] }}
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="font-semibold text-sm text-slate-900 truncate">{{ c.company }}</div>
+            <div class="text-[10px] text-slate-400 truncate">{{ c.location or '—' }}</div>
+            <div class="flex gap-2 mt-1">
+              <span class="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">{{ c.project_count }} project{{ 's' if c.project_count != 1 else '' }}</span>
+              {% if c.active_count %}<span class="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded">{{ c.active_count }} active</span>{% endif %}
+            </div>
+          </div>
+          <div class="text-right shrink-0">
+            {% if can_access('finances_view') %}
+            <div class="text-xs font-bold text-hive-700">{{ c.total_contracts | money }}</div>
+            {% endif %}
+          </div>
+        </a>
+        {% else %}
+        <p class="px-5 py-8 text-center text-slate-400 text-sm">Add a project to create client records.</p>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Recent activity -->
+    <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+      <div class="px-5 py-3 border-b"><h2 class="font-semibold text-sm text-slate-900">Recent Activity</h2></div>
+      <div class="divide-y divide-slate-50">
+        {% for log in recent_logs %}
+        <div class="px-5 py-2.5">
+          <div class="text-xs font-medium text-slate-700">{{ log.action }}</div>
+          <div class="text-[10px] text-slate-400">{{ log.user_name }} · {{ log.created_at[:16] }}</div>
+        </div>
+        {% else %}
+        <p class="px-5 py-6 text-center text-slate-400 text-xs">No activity yet.</p>
+        {% endfor %}
+      </div>
+      {% if g.user.role == 'admin' %}
+      <a href="{{ url_for('auditing') }}" class="block px-5 py-2.5 text-center text-xs text-hive-600 hover:bg-slate-50 border-t">View audit log →</a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Monthly Maintenance{% endblock %}
+{% block content %}
+<div class="mb-6">
+  <h1 class="text-2xl font-bold text-slate-900">Monthly Maintenance Clients</h1>
+  <p class="text-slate-500 text-sm mt-1">Clients with ongoing maintenance contracts — operations view</p>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+  {% for p in projects %}
+  <a href="{{ url_for('project_detail', project_id=p.id) }}" class="bg-white rounded-xl border p-5 hover:shadow-md hover:border-hive-200 transition block">
+    <div class="flex justify-between items-start">
+      <div>
+        <h3 class="font-bold text-slate-900">{{ p.client_company }}</h3>
+        <p class="text-sm text-hive-700 mt-0.5">{{ p.name }}</p>
+      </div>
+      <span class="text-xs bg-hive-100 text-hive-700 px-2 py-1 rounded-full font-medium">{{ p.maintenance_amount | money }}/mo</span>
+    </div>
+    <div class="mt-3 text-xs text-slate-500 space-y-1">
+      <div>📍 {{ p.client_location or p.client_address or '—' }}</div>
+      <div>📧 {{ p.client_email or '—' }}</div>
+      <div>Status: <span class="capitalize font-medium">{{ p.status }}</span></div>
+    </div>
+    <div class="mt-3 pt-3 border-t flex justify-between text-xs">
+      <span class="text-slate-400">Contract {{ p.contract_amount | money }}</span>
+      <span class="text-emerald-600">Received {{ p.total_received | money }}</span>
+    </div>
+  </a>
+  {% else %}
+  <p class="col-span-full text-center text-slate-400 py-12">No maintenance clients yet.</p>
+  {% endfor %}
+</div>
+{% endblock %}

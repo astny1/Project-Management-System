@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="max-w-3xl mx-auto">
+  <div class="mb-6">
+    <a href="{{ url_for('dashboard') }}" class="text-sm text-hive-600 hover:text-hive-700">&larr; Back to Dashboard</a>
+    <h1 class="text-2xl font-bold text-slate-900 mt-2">{{ title }}</h1>
+  </div>
+
+  <form method="POST" class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-6">
+    <fieldset>
+      <legend class="text-sm font-semibold text-slate-900 mb-4">Project Details</legend>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="sm:col-span-2">
+          <label class="block text-sm font-medium text-slate-700 mb-1">Project Name *</label>
+          <input type="text" name="name" required value="{{ project.name if project else '' }}"
+            class="w-full px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-hive-500 outline-none">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Status</label>
+          <select name="status" class="w-full px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-hive-500 outline-none">
+            <option value="pending" {% if project and project.status == 'pending' %}selected{% endif %}>Pending</option>
+            <option value="ongoing" {% if project and project.status == 'ongoing' %}selected{% endif %}>Ongoing</option>
+            <option value="completed" {% if project and project.status == 'completed' %}selected{% endif %}>Completed</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Duration (weeks)</label>
+          <input type="number" name="duration_weeks" min="0" value="{{ project.duration_weeks if project else 0 }}"
+            class="w-full px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-hive-500 outline-none">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Start Date</label>
+          <input type="date" name="start_date" value="{{ project.start_date if project else '' }}"
+            class="w-full px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-hive-500 outline-none">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">End Date</label>
+          <input type="date" name="end_date" value="{{ project.end_date if project else '' }}"
+            class="w-full px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-hive-500 outline-none">
+        </div>
+        <div class="sm:col-span-2">
+          <label class="block text-sm font-medium text-slate-700 mb-1">Description</label>
+          <textarea name="description" rows="3"
+            class="w-full px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-hive-500 outline-none">{{ project.description if project else '' }}</textarea>
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend class="text-sm font-semibold text-slate-900 mb-4">Client Company Details</legend>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="sm:col-span-2">
+          <label class="block text-sm font-medium text-slate-700 mb-1">Client Company *</label>
+          <input type="text" name="client_company" required value="{{ project.client_company if project else '' }}"
+            class="w-full px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-hive-500 outline-none">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Contact Name</label>
+          <input type="text" name="client_contact_name" value="{{ project.client_contact_name if project else '' }}"
+            class="w-full px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-hive-500 outline-none">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Client Location (City/Country)</label>
+          <input type="text" name="client_location" value="{{ project.client_location if project else '' }}"
+            placeholder="e.g. Lusaka, Zambia"
+            class="w-full px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-hive-500 outline-none">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Client Website</label>
+          <input type="url" name="client_website" value="{{ project.client_website if project else '' }}"
+            placeholder="https://clientwebsite.co.zm"
+            class="w-full px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-hive-500 outline-none">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Client Email</label>
+          <input type="email" name="client_email" value="{{ project.client_email if project else '' }}"
+            class="w-full px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-hive-500 outline-none">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Client Phone</label>
+          <input type="text" name="client_phone" value="{{ project.client_phone if project else '' }}"
+            class="w-full px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-hive-500 outline-none">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Client Address</label>
+          <input type="text" name="client_address" value="{{ project.client_address if project else '' }}"
+            class="w-full px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-hive-500 outline-none">
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend class="text-sm font-semibold text-slate-900 mb-4">Contract & Payment</legend>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Contract Amount (ZMW / Kwacha) *</label>
+          <input type="number" name="contract_amount" step="0.01" min="0" required
+            value="{{ project.contract_amount if project else 0 }}"
+            class="w-full px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-hive-500 outline-none">
+        </div>
+        <div class="sm:col-span-2">
+          <label class="block text-sm font-medium text-slate-700 mb-1">Terms of Payment</label>
+          <input type="text" name="payment_terms" placeholder="e.g. 40% upfront, 40% milestone, 20% completion"
+            value="{{ project.payment_terms if project else '' }}"
+            class="w-full px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-hive-500 outline-none">
+        </div>
+        <div class="flex items-center gap-3">
+          <input type="checkbox" name="has_monthly_maintenance" id="maint" value="1"
+            {% if project and project.has_monthly_maintenance %}checked{% endif %}
+            class="w-4 h-4 text-hive-600 rounded focus:ring-hive-500">
+          <label for="maint" class="text-sm font-medium text-slate-700">Has Monthly Maintenance</label>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Maintenance Amount (ZMW/month)</label>
+          <input type="number" name="maintenance_amount" step="0.01" min="0"
+            value="{{ project.maintenance_amount if project else 0 }}"
+            class="w-full px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-hive-500 outline-none">
+        </div>
+      </div>
+    </fieldset>
+
+    <div class="flex gap-3 pt-2">
+      <button type="submit" class="bg-hive-600 hover:bg-hive-700 text-white font-semibold px-6 py-2.5 rounded-lg transition">
+        Save Project
+      </button>
+      <a href="{{ url_for('dashboard') }}" class="px-6 py-2.5 rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-50 transition">
+        Cancel
+      </a>
+    </div>
+  </form>
+</div>
+{% endblock %}

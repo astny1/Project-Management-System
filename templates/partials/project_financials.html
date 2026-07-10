@@ -1,0 +1,74 @@
+<!-- Expenses -->
+<div class="bg-white rounded-xl border overflow-hidden">
+  <div class="px-5 py-3 border-b flex justify-between"><h2 class="font-semibold text-sm">Expenses</h2><span class="text-sm text-red-500 font-bold">{{ totals.expenses | money }}</span></div>
+  {% if expenses %}
+  <table class="w-full text-sm"><tbody class="divide-y">
+    {% for e in expenses %}
+    <tr><td class="px-5 py-2 text-xs">{{ e.expense_date }}</td><td class="px-3 py-2">{{ e.description }}</td><td class="px-5 py-2 text-right text-red-500 font-medium">{{ e.amount | money }}</td></tr>
+    {% endfor %}
+  </tbody></table>
+  {% else %}<p class="px-5 py-4 text-sm text-slate-400">No expenses.</p>{% endif %}
+  {% if can_access('project_expenses_request') or g.user.role == 'admin' %}
+  <form method="POST" action="{{ url_for('add_expense', project_id=project.id) }}" class="px-5 py-3 border-t bg-slate-50 grid grid-cols-2 sm:grid-cols-5 gap-2">
+    <input type="date" name="expense_date" class="px-2 py-1.5 text-xs border rounded">
+    <input name="category" placeholder="Category" class="px-2 py-1.5 text-xs border rounded">
+    <input name="description" placeholder="Description" required class="px-2 py-1.5 text-xs border rounded sm:col-span-2">
+    <div class="flex gap-1">
+      <input name="amount" type="number" step="0.01" placeholder="ZMW" required class="flex-1 px-2 py-1.5 text-xs border rounded">
+      <button class="bg-red-500 text-white text-xs px-2 rounded">{% if needs_approval %}Submit{% else %}Add{% endif %}</button>
+    </div>
+  </form>
+  {% endif %}
+</div>
+
+<!-- Payments -->
+{% if can_access('finances_view') or can_access('project_payments_request') or g.user.role == 'admin' %}
+<div class="bg-white rounded-xl border overflow-hidden">
+  <div class="px-5 py-3 border-b flex justify-between"><h2 class="font-semibold text-sm">Payments Received</h2><span class="text-sm text-emerald-600 font-bold">{{ totals.received | money }}</span></div>
+  {% if payments %}
+  <table class="w-full text-sm"><tbody class="divide-y">
+    {% for p in payments %}
+    <tr><td class="px-5 py-2 text-xs">{{ p.payment_date }}</td><td class="px-3 py-2">{{ p.description or '—' }}</td><td class="px-5 py-2 text-right text-emerald-600 font-medium">{{ p.amount | money }}</td></tr>
+    {% endfor %}
+  </tbody></table>
+  {% else %}<p class="px-5 py-4 text-sm text-slate-400">No payments.</p>{% endif %}
+  {% if can_access('project_payments_request') or g.user.role == 'admin' %}
+  <form method="POST" action="{{ url_for('add_payment', project_id=project.id) }}" class="px-5 py-3 border-t bg-slate-50 grid grid-cols-2 sm:grid-cols-4 gap-2">
+    <input type="date" name="payment_date" class="px-2 py-1.5 text-xs border rounded">
+    <input name="description" placeholder="Description" class="px-2 py-1.5 text-xs border rounded">
+    <input name="amount" type="number" step="0.01" placeholder="Amount ZMW" required class="px-2 py-1.5 text-xs border rounded">
+    <button class="bg-emerald-600 text-white text-xs py-1.5 rounded">{% if needs_approval %}Submit{% else %}Add Payment{% endif %}</button>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- Subcontractors -->
+<div class="bg-white rounded-xl border overflow-hidden">
+  <div class="px-5 py-3 border-b"><h2 class="font-semibold text-sm">Subcontractors</h2></div>
+  {% if subcontractors %}
+  <table class="w-full text-sm"><tbody class="divide-y">
+    {% for s in subcontractors %}
+    <tr><td class="px-5 py-2 font-medium">{{ s.name }}</td><td class="px-3 py-2 text-slate-500">{{ s.company or '—' }}</td>
+      {% if can_access('finances_view') or g.user.role == 'admin' %}
+      <td class="px-3 py-2 text-right">{{ s.contract_amount | money }}</td><td class="px-5 py-2 text-right">{{ s.amount_paid | money }}</td>
+      {% else %}
+      <td class="px-5 py-2 text-slate-500 text-xs">{{ s.contact_email or s.company or '—' }}</td>
+      {% endif %}
+    </tr>
+    {% endfor %}
+  </tbody></table>
+  {% else %}<p class="px-5 py-4 text-sm text-slate-400">No subcontractors.</p>{% endif %}
+  {% if can_access('subcontractors_request') or g.user.role == 'admin' %}
+  <form method="POST" action="{{ url_for('add_subcontractor', project_id=project.id) }}" class="px-5 py-3 border-t bg-slate-50 space-y-2">
+    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+      <input name="name" placeholder="Name *" required class="px-2 py-1.5 text-xs border rounded">
+      <input name="company" placeholder="Company" class="px-2 py-1.5 text-xs border rounded">
+      <input name="contact_email" placeholder="Email" class="px-2 py-1.5 text-xs border rounded">
+      <input name="contract_amount" type="number" step="0.01" placeholder="Contract ZMW" class="px-2 py-1.5 text-xs border rounded">
+      <input name="amount_paid" type="number" step="0.01" placeholder="Paid ZMW" class="px-2 py-1.5 text-xs border rounded">
+    </div>
+    <button class="bg-slate-700 text-white text-xs px-4 py-1.5 rounded">{% if needs_approval %}Submit for Approval{% else %}Add Subcontractor{% endif %}</button>
+  </form>
+  {% endif %}
+</div>

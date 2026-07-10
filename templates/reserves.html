@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Company Reserves{% endblock %}
+{% block content %}
+<div class="mb-6">
+  <h1 class="text-2xl font-bold text-slate-900">Reserves & Company Account</h1>
+  <p class="text-slate-500 text-sm mt-1">Stanbic Bank main account + reserve funds (ZMW)</p>
+</div>
+
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+  <div class="bg-white rounded-xl border p-5 shadow-sm border-l-4 border-l-hive-600">
+    <div class="text-xs uppercase text-slate-500">Stanbic Bank Zambia</div>
+    <div class="text-[10px] text-hive-600 font-medium mt-0.5">Main Company Account</div>
+    <div class="text-2xl font-bold text-hive-700 mt-2">{{ position.bank_balance | money }}</div>
+    {% if position.bank %}
+    <div class="text-[10px] text-slate-400 mt-2 font-mono">Acc: {{ position.bank.account_number or '—' }}</div>
+    {% endif %}
+  </div>
+  <div class="bg-white rounded-xl border p-5 shadow-sm">
+    <div class="text-xs uppercase text-slate-500">Total Reserves</div>
+    <div class="text-2xl font-bold text-blue-600 mt-2">{{ total | money }}</div>
+    <div class="text-[10px] text-slate-400 mt-1">Emergency & infrastructure funds</div>
+  </div>
+  <div class="bg-white rounded-xl border p-5 shadow-sm">
+    <div class="text-xs uppercase text-slate-500">Total Available</div>
+    <div class="text-2xl font-bold text-emerald-600 mt-2">{{ position.total_available | money }}</div>
+    <div class="text-[10px] text-slate-400 mt-1">Bank + reserves combined</div>
+  </div>
+</div>
+
+{% if g.user.role == 'admin' and position.bank %}
+<div class="bg-hive-50 border border-hive-200 rounded-xl p-4 mb-6">
+  <h3 class="font-semibold text-sm text-hive-900 mb-2">Update Stanbic Account Balance</h3>
+  <form method="POST" action="{{ url_for('update_main_bank') }}" class="flex flex-wrap gap-2 items-end">
+    <div>
+      <label class="text-[10px] text-slate-500 uppercase">Balance (ZMW)</label>
+      <input type="number" name="balance" step="0.01" value="{{ position.bank.balance }}" required
+        class="block w-40 px-3 py-2 border rounded-lg text-sm mt-0.5">
+    </div>
+    <div>
+      <label class="text-[10px] text-slate-500 uppercase">Account No.</label>
+      <input type="text" name="account_number" value="{{ position.bank.account_number or '' }}"
+        class="block w-48 px-3 py-2 border rounded-lg text-sm mt-0.5 font-mono">
+    </div>
+    <button type="submit" class="bg-hive-600 text-white px-4 py-2 rounded-lg text-sm font-medium">Save</button>
+  </form>
+</div>
+{% endif %}
+
+<div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 text-xs text-blue-900">
+  <strong>Reserves</strong> are funds set aside for emergencies, tax, and equipment.
+  <strong>Investments</strong> (business stakes) are tracked separately —
+  <a href="{{ url_for('investments') }}" class="underline font-medium">view investments →</a>
+</div>
+
+<div class="bg-white rounded-xl border shadow-sm overflow-hidden mb-6">
+  <div class="px-5 py-3 border-b bg-blue-50"><h2 class="font-semibold text-sm text-blue-900">Reserve Funds</h2></div>
+  <table class="w-full text-sm">
+    <thead class="text-[10px] uppercase text-slate-500 bg-slate-50">
+      <tr><th class="text-left px-5 py-2">Name</th><th class="text-left px-3 py-2">Category</th><th class="text-right px-5 py-2">Amount</th></tr>
+    </thead>
+    <tbody class="divide-y">
+      {% for r in reserves %}
+      <tr>
+        <td class="px-5 py-3">
+          <div class="font-medium">{{ r.name }}</div>
+          <div class="text-[10px] text-slate-400">{{ r.purpose or '' }}</div>
+        </td>
+        <td class="px-3 py-3 text-xs">{{ r.category or '—' }}</td>
+        <td class="px-5 py-3 text-right font-bold text-blue-600">{{ r.amount | money }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="3" class="px-5 py-8 text-center text-slate-400">No reserves yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if g.user.role == 'admin' %}
+<form method="POST" action="{{ url_for('add_reserve') }}" class="bg-white rounded-xl border p-5 space-y-2 max-w-lg">
+  <h3 class="font-semibold text-sm">Add Reserve</h3>
+  <input name="name" placeholder="Reserve name" required class="w-full px-3 py-2 border rounded-lg text-sm">
+  <input name="amount" type="number" step="0.01" placeholder="Amount (ZMW)" required class="w-full px-3 py-2 border rounded-lg text-sm">
+  <input name="category" placeholder="Category (Emergency, Growth...)" class="w-full px-3 py-2 border rounded-lg text-sm">
+  <input name="purpose" placeholder="Purpose" class="w-full px-3 py-2 border rounded-lg text-sm">
+  <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium">Add Reserve</button>
+</form>
+{% endif %}
+{% endblock %}

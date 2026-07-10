@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+{% block content %}
+<div class="max-w-2xl mx-auto space-y-6">
+  <div>
+    <h1 class="text-2xl font-bold text-slate-900 dark:text-white">Settings</h1>
+    <p class="text-slate-500 dark:text-slate-400 mt-1 text-sm">Manage your account, appearance, and preferences</p>
+  </div>
+
+  <!-- Appearance -->
+  <div class="bg-white dark:bg-slate-800 rounded-xl border dark:border-slate-700 shadow-sm p-6">
+    <h2 class="font-semibold text-slate-900 dark:text-white mb-1">Appearance</h2>
+    <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">Switch between day and night mode</p>
+    <div class="flex gap-2">
+      <button type="button" id="theme-day"
+        class="theme-btn flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 text-sm font-medium transition">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+        Day Mode
+      </button>
+      <button type="button" id="theme-night"
+        class="theme-btn flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 text-sm font-medium transition">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+        Night Mode
+      </button>
+    </div>
+  </div>
+
+  <!-- Profile -->
+  <form method="POST" class="bg-white dark:bg-slate-800 rounded-xl border dark:border-slate-700 shadow-sm p-6 space-y-4">
+    <input type="hidden" name="action" value="profile">
+    <h2 class="font-semibold text-slate-900 dark:text-white">My Account</h2>
+    <p class="text-xs text-slate-500 dark:text-slate-400 -mt-2">Update your name, email, and password</p>
+
+    <div>
+      <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Full Name</label>
+      <input type="text" name="name" required value="{{ user.name }}"
+        class="w-full px-3 py-2 border dark:border-slate-600 rounded-lg dark:bg-slate-900 dark:text-white">
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Email (Login)</label>
+      <input type="email" name="email" required value="{{ user.email }}"
+        class="w-full px-3 py-2 border dark:border-slate-600 rounded-lg dark:bg-slate-900 dark:text-white">
+    </div>
+    <div class="border-t dark:border-slate-700 pt-4">
+      <p class="text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">Change Password <span class="text-slate-400 font-normal">(leave blank to keep current)</span></p>
+      <div class="space-y-3">
+        <input type="password" name="current_password" placeholder="Current password"
+          class="w-full px-3 py-2 border dark:border-slate-600 rounded-lg dark:bg-slate-900 dark:text-white">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <input type="password" name="new_password" placeholder="New password"
+            class="w-full px-3 py-2 border dark:border-slate-600 rounded-lg dark:bg-slate-900 dark:text-white">
+          <input type="password" name="confirm_password" placeholder="Confirm new password"
+            class="w-full px-3 py-2 border dark:border-slate-600 rounded-lg dark:bg-slate-900 dark:text-white">
+        </div>
+      </div>
+    </div>
+    <div class="text-xs text-slate-400">Role: {{ role_label(user.role) }}</div>
+    <button type="submit" class="bg-hive-600 hover:bg-hive-700 text-white font-semibold px-6 py-2.5 rounded-lg">Save Account</button>
+  </form>
+
+  {% if g.user.role == 'admin' and company %}
+  <!-- Company (Admin only) -->
+  <form method="POST" class="bg-white dark:bg-slate-800 rounded-xl border dark:border-slate-700 shadow-sm p-6 space-y-4">
+    <input type="hidden" name="action" value="company">
+    <h2 class="font-semibold text-slate-900 dark:text-white">Company Settings</h2>
+    <p class="text-xs text-slate-500 dark:text-slate-400 -mt-2">GrowthHive Media profile and targets (ZMW)</p>
+
+    <div>
+      <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Company Name</label>
+      <input type="text" name="company_name" required value="{{ company.company_name }}"
+        class="w-full px-3 py-2 border dark:border-slate-600 rounded-lg dark:bg-slate-900 dark:text-white">
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Tagline</label>
+      <input type="text" name="tagline" value="{{ company.tagline or '' }}"
+        class="w-full px-3 py-2 border dark:border-slate-600 rounded-lg dark:bg-slate-900 dark:text-white">
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div>
+        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Company Email</label>
+        <input type="email" name="email" value="{{ company.email or '' }}"
+          class="w-full px-3 py-2 border dark:border-slate-600 rounded-lg dark:bg-slate-900 dark:text-white">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Phone</label>
+        <input type="text" name="phone" value="{{ company.phone or '' }}"
+          class="w-full px-3 py-2 border dark:border-slate-600 rounded-lg dark:bg-slate-900 dark:text-white">
+      </div>
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Address</label>
+      <input type="text" name="address" value="{{ company.address or '' }}"
+        class="w-full px-3 py-2 border dark:border-slate-600 rounded-lg dark:bg-slate-900 dark:text-white">
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div>
+        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Bank Balance (ZMW)</label>
+        <input type="number" name="bank_balance" step="0.01" required value="{{ company.bank_balance }}"
+          class="w-full px-3 py-2 border dark:border-slate-600 rounded-lg dark:bg-slate-900 dark:text-white">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Monthly Profit Target</label>
+        <input type="number" name="monthly_profit_target" step="0.01" value="{{ company.monthly_profit_target or 0 }}"
+          class="w-full px-3 py-2 border dark:border-slate-600 rounded-lg dark:bg-slate-900 dark:text-white">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Yearly Investment Goal</label>
+        <input type="number" name="yearly_investment_goal" step="0.01" value="{{ company.yearly_investment_goal or 0 }}"
+          class="w-full px-3 py-2 border dark:border-slate-600 rounded-lg dark:bg-slate-900 dark:text-white">
+      </div>
+    </div>
+    <p class="text-xs text-slate-400">Stanbic Bank balance is updated under Reserves.</p>
+    <button type="submit" class="bg-hive-600 hover:bg-hive-700 text-white font-semibold px-6 py-2.5 rounded-lg">Save Company Settings</button>
+  </form>
+  {% endif %}
+</div>
+
+<script>
+(function () {
+  function applyTheme(theme) {
+    document.documentElement.classList.toggle('dark', theme === 'night');
+    localStorage.setItem('gh-theme', theme);
+    var dayBtn = document.getElementById('theme-day');
+    var nightBtn = document.getElementById('theme-night');
+    var active = 'border-hive-500 bg-hive-50 text-hive-800 dark:bg-hive-900/40 dark:text-hive-200 dark:border-hive-500';
+    var idle = 'border-slate-200 text-slate-600 dark:border-slate-600 dark:text-slate-400';
+    if (dayBtn && nightBtn) {
+      dayBtn.className = 'theme-btn flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 text-sm font-medium transition ' + (theme === 'day' ? active : idle);
+      nightBtn.className = 'theme-btn flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 text-sm font-medium transition ' + (theme === 'night' ? active : idle);
+    }
+  }
+  var saved = localStorage.getItem('gh-theme') || 'day';
+  applyTheme(saved);
+  document.getElementById('theme-day')?.addEventListener('click', function () { applyTheme('day'); });
+  document.getElementById('theme-night')?.addEventListener('click', function () { applyTheme('night'); });
+})();
+</script>
+{% endblock %}

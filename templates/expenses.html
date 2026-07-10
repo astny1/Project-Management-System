@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Expenses{% endblock %}
+{% block content %}
+<div class="mb-6">
+  <h1 class="text-2xl font-bold text-slate-900">Expenses Tracking</h1>
+  <p class="text-slate-500 text-sm mt-1">All project and company expenses in Kwacha (ZMW)</p>
+</div>
+
+<div class="grid grid-cols-2 gap-4 mb-6">
+  <div class="bg-white rounded-xl border p-4">
+    <div class="text-xs uppercase text-slate-500">Project Expenses</div>
+    <div class="text-xl font-bold text-red-500">{{ total_project | money }}</div>
+  </div>
+  <div class="bg-white rounded-xl border p-4">
+    <div class="text-xs uppercase text-slate-500">Company Expenses</div>
+    <div class="text-xl font-bold text-red-600">{{ total_general | money }}</div>
+  </div>
+</div>
+
+<form method="POST" action="{{ url_for('add_company_expense') }}" class="bg-white rounded-xl border p-4 mb-6 grid grid-cols-2 sm:grid-cols-6 gap-2">
+  <select name="project_id" class="px-3 py-2 border rounded-lg text-sm col-span-2">
+    <option value="">Company expense (no project)</option>
+    {% for p in projects %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
+  </select>
+  <input name="category" placeholder="Category" class="px-3 py-2 border rounded-lg text-sm">
+  <input name="description" placeholder="Description" required class="px-3 py-2 border rounded-lg text-sm col-span-2">
+  <input name="amount" type="number" step="0.01" placeholder="Amount ZMW" required class="px-3 py-2 border rounded-lg text-sm">
+  <button type="submit" class="bg-red-500 text-white rounded-lg text-sm font-medium">Add Expense</button>
+</form>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+  <div class="bg-white rounded-xl border overflow-hidden">
+    <div class="px-5 py-3 border-b bg-red-50"><h2 class="font-semibold text-sm text-red-900">Project Expenses</h2></div>
+    <table class="w-full text-sm">
+      <tbody class="divide-y">
+        {% for e in project_expenses %}
+        <tr>
+          <td class="px-5 py-2">
+            <div class="font-medium text-xs">{{ e.project_name }}</div>
+            <div class="text-[10px] text-slate-400">{{ e.description }} · {{ e.expense_date }}</div>
+          </td>
+          <td class="px-5 py-2 text-right text-red-500 font-bold">{{ e.amount | money }}</td>
+        </tr>
+        {% else %}
+        <tr><td class="px-5 py-8 text-center text-slate-400">No project expenses.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="bg-white rounded-xl border overflow-hidden">
+    <div class="px-5 py-3 border-b bg-slate-100"><h2 class="font-semibold text-sm">Company Expenses</h2></div>
+    <table class="w-full text-sm">
+      <tbody class="divide-y">
+        {% for e in general_expenses %}
+        <tr>
+          <td class="px-5 py-2">
+            <div class="font-medium text-xs">{{ e.category or 'General' }}</div>
+            <div class="text-[10px] text-slate-400">{{ e.description }} · {{ e.expense_date }}</div>
+          </td>
+          <td class="px-5 py-2 text-right text-red-500 font-bold">{{ e.amount | money }}</td>
+        </tr>
+        {% else %}
+        <tr><td class="px-5 py-8 text-center text-slate-400">No company expenses.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

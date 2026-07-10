@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Team Management{% endblock %}
+{% block content %}
+<div class="mb-6">
+  <h1 class="text-2xl font-bold text-slate-900">Team & Access Management</h1>
+  <p class="text-slate-500 text-sm mt-1">Assign Admin, Sales Manager, or Project Manager roles</p>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
+  <div class="bg-hive-50 border border-hive-200 rounded-xl p-4 text-sm">
+    <strong class="text-hive-900">Admin</strong>
+    <p class="text-hive-800/80 text-xs mt-1">Full access. Approves payments, expenses, and important changes.</p>
+  </div>
+  <div class="bg-violet-50 border border-violet-200 rounded-xl p-4 text-sm">
+    <strong class="text-violet-900">Sales Manager</strong>
+    <p class="text-violet-800/80 text-xs mt-1">Add projects, clients, finances, reports. Submissions need admin approval.</p>
+  </div>
+  <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm">
+    <strong class="text-blue-900">Project Manager</strong>
+    <p class="text-blue-800/80 text-xs mt-1">Projects, timeline, maintenance clients, operations. Needs approval for financial actions.</p>
+  </div>
+</div>
+
+<div class="bg-white rounded-xl border shadow-sm overflow-hidden mb-6">
+  <div class="px-5 py-3 border-b"><h2 class="font-semibold">Team Members</h2></div>
+  <table class="w-full text-sm">
+    <thead class="bg-slate-50 text-[10px] uppercase text-slate-500">
+      <tr>
+        <th class="text-left px-5 py-2">Name</th>
+        <th class="text-left px-3 py-2">Email</th>
+        <th class="text-left px-3 py-2">Role</th>
+        <th class="text-right px-5 py-2">Change Role</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y">
+      {% for u in users %}
+      <tr>
+        <td class="px-5 py-3 font-medium">{{ u.name }}</td>
+        <td class="px-3 py-3 text-slate-500">{{ u.email }}</td>
+        <td class="px-3 py-3">
+          <span class="text-xs px-2 py-0.5 rounded-full
+            {% if u.role == 'admin' %}bg-hive-100 text-hive-800
+            {% elif u.role == 'sales_manager' %}bg-violet-100 text-violet-800
+            {% else %}bg-blue-100 text-blue-800{% endif %}">
+            {{ role_label(u.role) }}
+          </span>
+        </td>
+        <td class="px-5 py-3 text-right">
+          {% if u.id != g.user.id %}
+          <form method="POST" action="{{ url_for('team_update_role', user_id=u.id) }}" class="inline-flex gap-1">
+            <select name="role" class="text-xs border rounded px-2 py-1">
+              <option value="admin" {% if u.role == 'admin' %}selected{% endif %}>Admin</option>
+              <option value="sales_manager" {% if u.role == 'sales_manager' %}selected{% endif %}>Sales Manager</option>
+              <option value="project_manager" {% if u.role == 'project_manager' %}selected{% endif %}>Project Manager</option>
+            </select>
+            <button type="submit" class="text-xs bg-slate-800 text-white px-2 py-1 rounded">Save</button>
+          </form>
+          {% else %}
+          <span class="text-xs text-slate-400">You</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<form method="POST" action="{{ url_for('team_add') }}" class="bg-white rounded-xl border p-5 max-w-lg space-y-3">
+  <h3 class="font-semibold text-sm">Add Team Member</h3>
+  <input name="name" placeholder="Full name" required class="w-full px-3 py-2 border rounded-lg text-sm">
+  <input name="email" type="email" placeholder="Email" required class="w-full px-3 py-2 border rounded-lg text-sm">
+  <input name="password" type="password" placeholder="Password" required class="w-full px-3 py-2 border rounded-lg text-sm">
+  <select name="role" class="w-full px-3 py-2 border rounded-lg text-sm">
+    <option value="sales_manager">Sales Manager</option>
+    <option value="project_manager">Project Manager</option>
+    <option value="admin">Admin</option>
+  </select>
+  <button type="submit" class="bg-hive-600 text-white px-4 py-2 rounded-lg text-sm font-medium">Add Member</button>
+</form>
+{% endblock %}

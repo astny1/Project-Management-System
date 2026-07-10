@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}GrowthHive Media{% endblock %} — Admin Panel</title>
+  <script>
+    (function () {
+      if (localStorage.getItem('gh-theme') === 'night') document.documentElement.classList.add('dark');
+    })();
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            hive: {
+              50: '#f0fdfa', 100: '#ccfbf1', 200: '#99f6e4',
+              500: '#14b8a6', 600: '#0d9488', 700: '#0f766e', 800: '#115e59', 900: '#134e4a',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    @media print { .no-print { display: none !important; } body { background: white; } }
+    #nav-menu-panel {
+      position: fixed; z-index: 99999; min-width: 14rem; max-width: 16rem;
+      max-height: 70vh; overflow-y: auto; background: #115e59;
+      border: 1px solid #0f766e; border-radius: 0.75rem;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.35); padding: 0.5rem 0;
+    }
+    #nav-menu-panel.is-open { display: block !important; }
+    #nav-menu-chevron.is-open { transform: rotate(180deg); }
+    /* Night mode overrides for pages using light Tailwind classes */
+    html.dark body { background-color: #0f172a; color: #e2e8f0; }
+    html.dark .bg-white { background-color: #1e293b !important; }
+    html.dark .bg-slate-50 { background-color: #0f172a !important; }
+    html.dark .border, html.dark .border-slate-100, html.dark .border-slate-200 { border-color: #334155 !important; }
+    html.dark .text-slate-900 { color: #f1f5f9 !important; }
+    html.dark .text-slate-800 { color: #e2e8f0 !important; }
+    html.dark .text-slate-700 { color: #cbd5e1 !important; }
+    html.dark .text-slate-500 { color: #94a3b8 !important; }
+    html.dark .text-slate-400 { color: #64748b !important; }
+    html.dark .divide-slate-50 > :not([hidden]) ~ :not([hidden]) { border-color: #334155 !important; }
+    html.dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]) { border-color: #334155 !important; }
+    html.dark input, html.dark select, html.dark textarea {
+      background-color: #0f172a !important; border-color: #475569 !important; color: #f1f5f9 !important;
+    }
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body class="{% block body_class %}bg-slate-50 dark:bg-slate-900{% endblock %} min-h-screen text-slate-800 dark:text-slate-100">
+  {% if g.user %}
+  <nav class="no-print bg-hive-900 text-white shadow-lg sticky top-0 z-50 border-b border-hive-800">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16 gap-3">
+        <a href="{{ url_for('dashboard') }}" class="flex items-center gap-3 shrink-0 min-w-0">
+          <div class="w-10 h-10 rounded-xl bg-white/10 border border-white/20 p-1 flex items-center justify-center overflow-hidden shrink-0">
+            <img src="{{ url_for('static', filename='images/growthhive-logo.jpg') }}" alt="GrowthHive Media" class="w-full h-full object-contain rounded-lg">
+          </div>
+          <div class="hidden sm:block min-w-0">
+            <div class="font-semibold text-sm leading-tight truncate">GrowthHive Media</div>
+            <div class="text-hive-200 text-[10px] truncate">{{ g.user.name }} · {{ role_label(g.user.role) }}</div>
+          </div>
+        </a>
+
+        <div class="flex items-center gap-2 shrink-0">
+          <button type="button" id="nav-menu-btn" aria-expanded="false" aria-haspopup="true"
+            class="flex items-center gap-2 px-3 py-2 rounded-lg bg-hive-800 hover:bg-hive-700 border border-hive-700 transition text-sm font-medium text-white">
+            <svg class="w-4 h-4 text-hive-200" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+            </svg>
+            <span>Sections</span>
+            {% if pending_approvals %}
+            <span class="bg-red-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center">{{ pending_approvals }}</span>
+            {% endif %}
+            <svg id="nav-menu-chevron" class="w-3.5 h-3.5 text-hive-300 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+          </button>
+
+          <a href="{{ url_for('settings') }}" title="Settings"
+            class="flex items-center justify-center w-10 h-10 rounded-lg transition
+            {% if request.endpoint == 'settings' %}bg-hive-700 text-white{% else %}bg-hive-800 hover:bg-hive-700 text-hive-100 border border-hive-700{% endif %}">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+            </svg>
+          </a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <div id="nav-menu-panel" style="display:none;" role="menu" aria-labelledby="nav-menu-btn">
+    {% for group_name, items in nav_groups %}
+      {% if group_name %}
+      <div class="px-3 pt-2 pb-1 text-[10px] uppercase tracking-wider text-teal-300/80 font-semibold">{{ group_name }}</div>
+      {% endif %}
+      {% for ep, label in items %}
+      <a href="{{ url_for(ep) }}" role="menuitem"
+        class="nav-menu-link flex items-center justify-between mx-1.5 px-3 py-2.5 rounded-lg text-sm text-white transition hover:bg-teal-700/80
+        {% if request.endpoint == ep %}bg-teal-800 font-medium{% endif %}">
+        <span>{{ label }}</span>
+        {% if ep == 'approvals' and pending_approvals %}
+        <span class="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{{ pending_approvals }}</span>
+        {% endif %}
+      </a>
+      {% endfor %}
+    {% endfor %}
+    <div class="border-t border-teal-700 mt-2 pt-2 mx-1.5">
+      <a href="{{ url_for('logout') }}" role="menuitem"
+        class="nav-menu-link flex items-center gap-2 mx-0 px-3 py-2.5 rounded-lg text-sm text-red-200 hover:bg-red-900/40 hover:text-red-100 transition">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+        Logout
+      </a>
+    </div>
+  </div>
+
+  <script>
+  document.addEventListener('DOMContentLoaded', function () {
+    var btn = document.getElementById('nav-menu-btn');
+    var panel = document.getElementById('nav-menu-panel');
+    var chevron = document.getElementById('nav-menu-chevron');
+    if (!btn || !panel) return;
+
+    function positionPanel() {
+      var rect = btn.getBoundingClientRect();
+      panel.style.top = (rect.bottom + 8) + 'px';
+      panel.style.right = Math.max(8, window.innerWidth - rect.right) + 'px';
+    }
+
+    function openMenu() {
+      positionPanel();
+      panel.style.display = 'block';
+      panel.classList.add('is-open');
+      btn.setAttribute('aria-expanded', 'true');
+      if (chevron) chevron.classList.add('is-open');
+    }
+
+    function closeMenu() {
+      panel.style.display = 'none';
+      panel.classList.remove('is-open');
+      btn.setAttribute('aria-expanded', 'false');
+      if (chevron) chevron.classList.remove('is-open');
+    }
+
+    btn.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      panel.style.display === 'block' ? closeMenu() : openMenu();
+    });
+
+    panel.querySelectorAll('.nav-menu-link').forEach(function (link) {
+      link.addEventListener('click', closeMenu);
+    });
+
+    window.addEventListener('resize', function () {
+      if (panel.style.display === 'block') positionPanel();
+    });
+
+    document.addEventListener('click', function (e) {
+      if (panel.style.display !== 'block') return;
+      if (btn.contains(e.target) || panel.contains(e.target)) return;
+      closeMenu();
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') closeMenu();
+    });
+  });
+  </script>
+  {% endif %}
+
+  <main class="{% if g.user %}max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6{% endif %}">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="mb-4 space-y-2 no-print {% if not g.user %}max-w-md mx-auto px-4 pt-6{% endif %}">
+          {% for category, message in messages %}
+          <div class="rounded-xl px-4 py-3 text-sm
+            {% if not g.user %}
+              {% if category == 'success' %}bg-emerald-500/20 text-emerald-100 border border-emerald-400/30
+              {% elif category == 'error' %}bg-red-500/20 text-red-100 border border-red-400/30
+              {% else %}bg-amber-500/20 text-amber-100 border border-amber-400/30{% endif %}
+            {% else %}
+              {% if category == 'success' %}bg-emerald-50 text-emerald-800 border border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-200 dark:border-emerald-800
+              {% elif category == 'error' %}bg-red-50 text-red-800 border border-red-200 dark:bg-red-900/30 dark:text-red-200 dark:border-red-800
+              {% else %}bg-amber-50 text-amber-800 border border-amber-200 dark:bg-amber-900/30 dark:text-amber-200 dark:border-amber-800{% endif %}
+            {% endif %}">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

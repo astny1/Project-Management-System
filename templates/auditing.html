@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Auditing{% endblock %}
+{% block content %}
+<div class="mb-6">
+  <h1 class="text-2xl font-bold text-slate-900">Auditing & Activity Log</h1>
+  <p class="text-slate-500 text-sm mt-1">Every action tracked across the platform</p>
+</div>
+
+<div class="bg-white rounded-xl border shadow-sm overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="bg-slate-50 text-[10px] uppercase text-slate-500">
+        <tr>
+          <th class="text-left px-5 py-2">Date & Time</th>
+          <th class="text-left px-3 py-2">User</th>
+          <th class="text-left px-3 py-2">Action</th>
+          <th class="text-left px-3 py-2">Type</th>
+          <th class="text-left px-5 py-2">Details</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y">
+        {% for log in logs %}
+        <tr class="hover:bg-slate-50">
+          <td class="px-5 py-2 text-xs text-slate-500 whitespace-nowrap">{{ log.created_at }}</td>
+          <td class="px-3 py-2 font-medium">{{ log.user_name or 'System' }}</td>
+          <td class="px-3 py-2">{{ log.action }}</td>
+          <td class="px-3 py-2">
+            {% if log.entity_type %}
+            <span class="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">{{ log.entity_type }}</span>
+            {% else %}—{% endif %}
+          </td>
+          <td class="px-5 py-2 text-xs text-slate-500">{{ log.details or '—' }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="px-5 py-12 text-center text-slate-400">No audit records yet. Actions will appear here as you use the system.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

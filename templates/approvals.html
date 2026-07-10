@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Approvals{% endblock %}
+{% block content %}
+<div class="mb-6">
+  <h1 class="text-2xl font-bold text-slate-900">Pending Approvals</h1>
+  <p class="text-slate-500 text-sm mt-1">Review and approve important actions from Sales & Project Managers</p>
+</div>
+
+<div class="bg-white rounded-xl border shadow-sm overflow-hidden mb-6">
+  <div class="px-5 py-3 border-b bg-amber-50"><h2 class="font-semibold text-amber-900">Awaiting Approval ({{ pending|length }})</h2></div>
+  {% if pending %}
+  <div class="divide-y">
+    {% for a in pending %}
+    <div class="px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div>
+        <div class="font-medium text-slate-900">{{ a.summary }}</div>
+        <div class="text-xs text-slate-500 mt-1">
+          {{ a.action_type.replace('_', ' ').title() }} · by {{ a.requested_by_name }} · {{ a.created_at[:16] }}
+        </div>
+      </div>
+      <form method="POST" action="{{ url_for('approvals_review', approval_id=a.id) }}" class="flex gap-2 items-center">
+        <input name="note" placeholder="Note (optional)" class="text-xs border rounded px-2 py-1.5 w-32">
+        <button name="action" value="approve" type="submit" class="text-xs bg-emerald-600 text-white px-3 py-1.5 rounded-lg font-medium">Approve</button>
+        <button name="action" value="reject" type="submit" class="text-xs bg-red-500 text-white px-3 py-1.5 rounded-lg font-medium">Reject</button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="px-5 py-10 text-center text-slate-400 text-sm">No pending approvals.</p>
+  {% endif %}
+</div>
+
+{% if history %}
+<div class="bg-white rounded-xl border overflow-hidden">
+  <div class="px-5 py-3 border-b"><h2 class="font-semibold text-sm">Recent Decisions</h2></div>
+  <table class="w-full text-sm">
+    <tbody class="divide-y">
+      {% for h in history %}
+      <tr>
+        <td class="px-5 py-2">{{ h.summary }}</td>
+        <td class="px-3 py-2">
+          <span class="text-[10px] px-2 py-0.5 rounded-full {% if h.status == 'approved' %}bg-emerald-100 text-emerald-700{% else %}bg-red-100 text-red-700{% endif %}">{{ h.status }}</span>
+        </td>
+        <td class="px-5 py-2 text-xs text-slate-400">{{ h.reviewed_by_name }} · {{ h.reviewed_at[:16] if h.reviewed_at else '' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

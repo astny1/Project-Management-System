@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block title %}{{ project.name }}{% endblock %}
+{% block content %}
+<div class="mb-6">
+  <a href="{{ url_for('dashboard') }}" class="text-sm text-hive-600 hover:underline">&larr; Dashboard</a>
+  <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mt-2">
+    <div>
+      <div class="flex items-center gap-3 flex-wrap">
+        <h1 class="text-2xl font-bold text-slate-900">{{ project.name }}</h1>
+        {% if project.status == 'ongoing' %}<span class="text-xs bg-emerald-100 text-emerald-700 px-2.5 py-0.5 rounded-full">Ongoing</span>
+        {% elif project.status == 'pending' %}<span class="text-xs bg-amber-100 text-amber-700 px-2.5 py-0.5 rounded-full">Pending</span>
+        {% else %}<span class="text-xs bg-slate-100 text-slate-600 px-2.5 py-0.5 rounded-full">Completed</span>{% endif %}
+        {% if project.days_left is not none and project.status != 'completed' %}
+        <span class="text-xs bg-amber-50 text-amber-700 border border-amber-200 px-2.5 py-0.5 rounded-full">
+          {% if project.days_left > 0 %}{{ project.days_left }} days remaining{% else %}Overdue{% endif %}
+        </span>
+        {% endif %}
+      </div>
+      <p class="text-slate-500 text-sm mt-1">{{ project.client_company }} · {{ project.duration_weeks }} weeks · ZMW</p>
+    </div>
+    <div class="flex gap-2">
+      {% if can_access('projects_edit') %}
+      <a href="{{ url_for('project_edit', project_id=project.id) }}" class="px-4 py-2 border rounded-lg text-sm hover:bg-slate-50">Edit</a>
+      {% endif %}
+      {% if can_access('reports') %}
+      <a href="{{ url_for('monthly_report', project_id=project.id) }}" class="px-4 py-2 bg-hive-600 text-white rounded-lg text-sm">Generate Report</a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{% if can_access('finances_view') %}
+<div class="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
+  <div class="bg-white rounded-xl border p-4"><div class="text-[10px] text-slate-500 uppercase">Contract</div><div class="text-lg font-bold">{{ project.contract_amount | money }}</div></div>
+  <div class="bg-white rounded-xl border p-4"><div class="text-[10px] text-slate-500 uppercase">Received</div><div class="text-lg font-bold text-emerald-600">{{ totals.received | money }}</div></div>
+  <div class="bg-white rounded-xl border p-4"><div class="text-[10px] text-slate-500 uppercase">Expenses</div><div class="text-lg font-bold text-red-500">{{ totals.expenses | money }}</div></div>
+  <div class="bg-white rounded-xl border p-4"><div class="text-[10px] text-slate-500 uppercase">Remaining</div><div class="text-lg font-bold text-amber-600">{{ totals.remaining | money }}</div></div>
+  <div class="bg-white rounded-xl border p-4"><div class="text-[10px] text-slate-500 uppercase">Est. Profit</div><div class="text-lg font-bold text-hive-700">{{ totals.profit_estimate | money }}</div></div>
+</div>
+{% elif can_access('operations_view') %}
+<div class="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
+  <div class="bg-white rounded-xl border p-4"><div class="text-[10px] text-slate-500 uppercase">Duration</div><div class="text-lg font-bold">{{ project.duration_weeks }} weeks</div></div>
+  <div class="bg-white rounded-xl border p-4"><div class="text-[10px] text-slate-500 uppercase">Maintenance</div><div class="text-lg font-bold text-hive-700">{% if project.has_monthly_maintenance %}{{ project.maintenance_amount | money }}/mo{% else %}None{% endif %}</div></div>
+  <div class="bg-white rounded-xl border p-4"><div class="text-[10px] text-slate-500 uppercase">Days Left</div><div class="text-lg font-bold text-amber-600">{% if project.days_left is not none %}{{ project.days_left }}{% else %}—{% endif %}</div></div>
+</div>
+{% endif %}
+
+{% if needs_approval %}
+<div class="mb-4 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
+  Financial changes you submit will be sent to the admin for approval before they take effect.
+</div>
+{% endif %}
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+  <div class="space-y-4">
+    <div class="bg-white rounded-xl border p-5">
+      <h2 class="font-semibold text-sm mb-4 text-hive-800">Client Company Details</h2>
+      <dl class="space-y-3 text-sm">
+        <div><dt class="text-[10px] text-slate-400 uppercase">Company</dt><dd class="font-semibold">{{ project.client_company }}</dd></div>
+        <div><dt class="text-[10px] text-slate-400 uppercase">Contact Person</dt><dd>{{ project.client_contact_name or '—' }}</dd></div>
+        <div><dt class="text-[10px] text-slate-400 uppercase">Location</dt><dd>{{ project.client_location or project.client_address or '—' }}</dd></div>
+        <div><dt class="text-[10px] text-slate-400 uppercase">Address</dt><dd>{{ project.client_address or '—' }}</dd></div>
+        <div><dt class="text-[10px] text-slate-400 uppercase">Email (Gmail / Business)</dt>
+          <dd>{% if project.client_email %}<a href="mailto:{{ project.client_email }}" class="text-hive-600 hover:underline">{{ project.client_email }}</a>{% else %}—{% endif %}</dd>
+        </div>
+        <div><dt class="text-[10px] text-slate-400 uppercase">Phone Number</dt>
+          <dd>{% if project.client_phone %}<a href="tel:{{ project.client_phone }}" class="text-hive-600">{{ project.client_phone }}</a>{% else %}—{% endif %}</dd>
+        </div>
+        <div><dt class="text-[10px] text-slate-400 uppercase">Website</dt>
+          <dd>{% if project.client_website %}<a href="{{ project.client_website }}" target="_blank" class="text-hive-600 hover:underline break-all">{{ project.client_website }}</a>{% else %}—{% endif %}</dd>
+        </div>
+      </dl>
+    </div>
+
+    <div class="bg-white rounded-xl border p-5">
+      <h2 class="font-semibold text-sm mb-4">Contract & Timeline</h2>
+      <dl class="space-y-2 text-sm">
+        <div class="flex justify-between"><dt class="text-slate-400">Payment Terms</dt><dd class="text-right max-w-[180px]">{{ project.payment_terms or '—' }}</dd></div>
+        <div class="flex justify-between"><dt class="text-slate-400">Duration</dt><dd>{{ project.duration_weeks }} weeks</dd></div>
+        <div class="flex justify-between"><dt class="text-slate-400">Start Date</dt><dd>{{ project.start_date or '—' }}</dd></div>
+        <div class="flex justify-between"><dt class="text-slate-400">End Date</dt><dd>{{ project.end_date or '—' }}</dd></div>
+        <div class="flex justify-between"><dt class="text-slate-400">Days to Complete</dt>
+          <dd class="font-semibold {% if project.days_left is not none and project.days_left <= 7 and project.status == 'ongoing' %}text-red-500{% else %}text-amber-600{% endif %}">
+            {% if project.days_left is not none %}{% if project.days_left > 0 %}{{ project.days_left }} days{% elif project.status == 'completed' %}Completed{% else %}Overdue{% endif %}{% else %}—{% endif %}
+          </dd>
+        </div>
+        <div class="flex justify-between"><dt class="text-slate-400">Maintenance</dt>
+          <dd>{% if project.has_monthly_maintenance %}{{ project.maintenance_amount | money }}/mo{% else %}No{% endif %}</dd>
+        </div>
+        {% if project.description %}<div><dt class="text-slate-400 text-[10px] uppercase">Description</dt><dd class="text-slate-600 mt-1">{{ project.description }}</dd></div>{% endif %}
+      </dl>
+    </div>
+
+    {% if can_access('finances_view') or can_access('reserves_view') %}
+    <div class="bg-white rounded-xl border p-5">
+      <h2 class="font-semibold text-sm mb-3">Company Finances</h2>
+      <dl class="space-y-2 text-xs">
+        <div class="flex justify-between"><dt class="text-slate-400">Stanbic Bank</dt><dd class="font-bold">{{ position.bank_balance | money }}</dd></div>
+        <div class="flex justify-between"><dt class="text-slate-400">Reserves</dt><dd>{{ position.reserves | money }}</dd></div>
+        <div class="flex justify-between"><dt class="text-slate-400">Total Available</dt><dd class="font-bold text-hive-700">{{ position.total_available | money }}</dd></div>
+      </dl>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="lg:col-span-2 space-y-4">
+    {% include 'partials/project_financials.html' %}
+
+    <div class="bg-white rounded-xl border overflow-hidden">
+      <div class="px-5 py-3 border-b bg-slate-50"><h2 class="font-semibold text-sm">Project Audit Trail</h2></div>
+      <div class="max-h-48 overflow-y-auto">
+        <table class="w-full text-xs">
+          <tbody class="divide-y">
+            {% for a in audits %}
+            <tr><td class="px-5 py-2 text-slate-400">{{ a.created_at }}</td><td class="px-3 py-2">{{ a.user_name }}</td><td class="px-5 py-2">{{ a.action }}</td></tr>
+            {% else %}
+            <tr><td class="px-5 py-6 text-slate-400 text-center" colspan="3">No audit entries for this project yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

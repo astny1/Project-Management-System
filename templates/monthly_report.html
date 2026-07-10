@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% block title %}Monthly Report — {{ project.name }}{% endblock %}
+{% block content %}
+<div class="no-print mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+  <div>
+    <a href="{{ url_for('project_detail', project_id=project.id) }}" class="text-sm text-hive-600 hover:text-hive-700">&larr; Back to Project</a>
+    <h1 class="text-2xl font-bold text-slate-900 mt-2">Monthly Report</h1>
+    <p class="text-slate-500">{{ project.name }} — {{ project.client_company }}</p>
+  </div>
+  <div class="flex items-center gap-3">
+    <form method="GET" class="flex items-center gap-2">
+      <select name="month" class="px-3 py-2 rounded-lg border border-slate-300 text-sm">
+        {% for m in range(1, 13) %}
+        <option value="{{ m }}" {% if m == month %}selected{% endif %}>{{ ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m-1] }}</option>
+        {% endfor %}
+      </select>
+      <input type="number" name="year" value="{{ year }}" min="2020" max="2030" class="w-24 px-3 py-2 rounded-lg border border-slate-300 text-sm">
+      <button type="submit" class="bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-lg text-sm font-medium transition">View</button>
+    </form>
+    <a href="{{ url_for('monthly_report_pdf', project_id=project.id, month=month, year=year) }}"
+      class="bg-hive-600 hover:bg-hive-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition inline-flex items-center gap-2">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+      Generate PDF
+    </a>
+    <button onclick="window.print()" class="border border-slate-300 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 transition">
+      Print
+    </button>
+  </div>
+</div>
+
+<div class="bg-white rounded-xl border border-slate-200 shadow-sm p-8 max-w-4xl mx-auto" id="report">
+  <!-- Header -->
+  <div class="flex items-start justify-between border-b border-slate-200 pb-6 mb-6">
+    <div>
+      <div class="flex items-center gap-3 mb-2">
+        <img src="{{ url_for('static', filename='images/growthhive-logo.jpg') }}" alt="GrowthHive Media" class="w-12 h-12 rounded-lg object-contain border border-hive-100">
+        <div>
+          <h2 class="text-xl font-bold text-hive-800">{{ company.company_name }}</h2>
+          <p class="text-sm text-slate-500">{{ company.tagline }}</p>
+        </div>
+      </div>
+      <p class="text-xs text-slate-400 mt-2">{{ company.email }} &middot; {{ company.phone }} &middot; {{ company.address }}</p>
+    </div>
+    <div class="text-right">
+      <div class="text-lg font-bold text-slate-900">Monthly Project Report</div>
+      <div class="text-hive-600 font-semibold">{{ month_label }}</div>
+    </div>
+  </div>
+
+  <!-- Project & Client -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
+    <div>
+      <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">Project</h3>
+      <dl class="space-y-2 text-sm">
+        <div class="flex justify-between"><dt class="text-slate-500">Name</dt><dd class="font-medium">{{ project.name }}</dd></div>
+        <div class="flex justify-between"><dt class="text-slate-500">Status</dt><dd class="font-medium capitalize">{{ project.status }}</dd></div>
+        <div class="flex justify-between"><dt class="text-slate-500">Duration</dt><dd>{{ project.duration_weeks }} weeks</dd></div>
+        <div class="flex justify-between"><dt class="text-slate-500">Contract</dt><dd class="font-bold">{{ project.contract_amount | money }}</dd></div>
+        <div class="flex justify-between"><dt class="text-slate-500">Payment Terms</dt><dd class="text-right max-w-[200px]">{{ project.payment_terms or '—' }}</dd></div>
+        <div class="flex justify-between">
+          <dt class="text-slate-500">Maintenance</dt>
+          <dd>{% if project.has_monthly_maintenance %}{{ project.maintenance_amount | money }}/mo{% else %}None{% endif %}</dd>
+        </div>
+      </dl>
+    </div>
+    <div>
+      <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">Client Company</h3>
+      <dl class="space-y-2 text-sm">
+        <div class="flex justify-between"><dt class="text-slate-500">Company</dt><dd class="font-medium">{{ project.client_company }}</dd></div>
+        <div class="flex justify-between"><dt class="text-slate-500">Contact</dt><dd>{{ project.client_contact_name or '—' }}</dd></div>
+        <div class="flex justify-between"><dt class="text-slate-500">Email</dt><dd>{{ project.client_email or '—' }}</dd></div>
+        <div class="flex justify-between"><dt class="text-slate-500">Phone</dt><dd>{{ project.client_phone or '—' }}</dd></div>
+        <div class="flex justify-between"><dt class="text-slate-500">Address</dt><dd class="text-right max-w-[200px]">{{ project.client_address or '—' }}</dd></div>
+      </dl>
+    </div>
+  </div>
+
+  <!-- Financial Summary -->
+  <div class="bg-hive-50 rounded-xl p-5 mb-8 border border-hive-100">
+    <h3 class="text-xs font-semibold text-hive-700 uppercase tracking-wide mb-4">Financial Summary</h3>
+    <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+      <div><div class="text-slate-500">Total Received</div><div class="text-lg font-bold text-emerald-600">{{ totals.received | money }}</div></div>
+      <div><div class="text-slate-500">Total Expenses</div><div class="text-lg font-bold text-red-500">{{ totals.expenses | money }}</div></div>
+      <div><div class="text-slate-500">Remaining Balance</div><div class="text-lg font-bold text-amber-600">{{ totals.remaining | money }}</div></div>
+      <div><div class="text-slate-500">Company Bank Balance</div><div class="text-lg font-bold text-hive-700">{{ company.bank_balance | money }}</div></div>
+      {% set month_payments_total = namespace(value=0) %}{% for p in payments %}{% set month_payments_total.value = month_payments_total.value + p.amount %}{% endfor %}
+      {% set month_expenses_total = namespace(value=0) %}{% for e in expenses %}{% set month_expenses_total.value = month_expenses_total.value + e.amount %}{% endfor %}
+      <div><div class="text-slate-500">Payments — {{ month_label }}</div><div class="text-lg font-bold text-emerald-600">{{ month_payments_total.value | money }}</div></div>
+      <div><div class="text-slate-500">Expenses — {{ month_label }}</div><div class="text-lg font-bold text-red-500">{{ month_expenses_total.value | money }}</div></div>
+    </div>
+  </div>
+
+  <!-- This month's payments -->
+  <div class="mb-6">
+    <h3 class="font-semibold text-slate-900 mb-3">Payments — {{ month_label }}</h3>
+    {% if payments %}
+    <table class="w-full text-sm border border-slate-200 rounded-lg overflow-hidden">
+      <thead class="bg-emerald-50 text-xs text-emerald-700 uppercase"><tr><th class="text-left px-4 py-2">Date</th><th class="text-left px-4 py-2">Description</th><th class="text-right px-4 py-2">Amount</th></tr></thead>
+      <tbody class="divide-y divide-slate-100">
+        {% for p in payments %}
+        <tr><td class="px-4 py-2">{{ p.payment_date }}</td><td class="px-4 py-2">{{ p.description or '—' }}</td><td class="px-4 py-2 text-right font-medium text-emerald-600">{{ p.amount | money }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="text-sm text-slate-400 italic">No payments recorded for this month.</p>
+    {% endif %}
+  </div>
+
+  <!-- This month's expenses -->
+  <div class="mb-6">
+    <h3 class="font-semibold text-slate-900 mb-3">Expenses — {{ month_label }}</h3>
+    {% if expenses %}
+    <table class="w-full text-sm border border-slate-200 rounded-lg overflow-hidden">
+      <thead class="bg-red-50 text-xs text-red-700 uppercase"><tr><th class="text-left px-4 py-2">Date</th><th class="text-left px-4 py-2">Category</th><th class="text-left px-4 py-2">Description</th><th class="text-right px-4 py-2">Amount</th></tr></thead>
+      <tbody class="divide-y divide-slate-100">
+        {% for e in expenses %}
+        <tr><td class="px-4 py-2">{{ e.expense_date }}</td><td class="px-4 py-2 text-slate-500">{{ e.category or '—' }}</td><td class="px-4 py-2">{{ e.description }}</td><td class="px-4 py-2 text-right font-medium text-red-500">{{ e.amount | money }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="text-sm text-slate-400 italic">No expenses recorded for this month.</p>
+    {% endif %}
+  </div>
+
+  <!-- Subcontractors -->
+  {% if subcontractors %}
+  <div class="mb-6">
+    <h3 class="font-semibold text-slate-900 mb-3">Subcontractors</h3>
+    <table class="w-full text-sm border border-slate-200 rounded-lg overflow-hidden">
+      <thead class="bg-slate-50 text-xs text-slate-500 uppercase"><tr><th class="text-left px-4 py-2">Name</th><th class="text-left px-4 py-2">Company</th><th class="text-right px-4 py-2">Contract</th><th class="text-right px-4 py-2">Paid</th></tr></thead>
+      <tbody class="divide-y divide-slate-100">
+        {% for s in subcontractors %}
+        <tr><td class="px-4 py-2 font-medium">{{ s.name }}</td><td class="px-4 py-2 text-slate-500">{{ s.company or '—' }}</td><td class="px-4 py-2 text-right">{{ s.contract_amount | money }}</td><td class="px-4 py-2 text-right">{{ s.amount_paid | money }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  <div class="border-t border-slate-200 pt-4 text-xs text-slate-400 text-center">
+    Generated by {{ g.user.name }} — {{ company.company_name }} — Technology & Marketing Solutions
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}{{ client.company }}{% endblock %}
+{% block content %}
+<div class="mb-6">
+  <a href="{{ url_for('clients') }}" class="text-sm text-hive-600 hover:underline">&larr; All Clients</a>
+</div>
+
+<div class="bg-gradient-to-br from-violet-600 via-hive-700 to-hive-900 rounded-2xl text-white p-6 sm:p-8 mb-6 shadow-xl">
+  <div class="flex flex-col sm:flex-row sm:items-start gap-6">
+    <div class="w-16 h-16 rounded-2xl bg-white/20 border border-white/30 flex items-center justify-center text-3xl font-bold shrink-0">
+      {{ client.company[0] }}
+    </div>
+    <div class="flex-1">
+      <h1 class="text-2xl sm:text-3xl font-bold">{{ client.company }}</h1>
+      <p class="text-hive-100 mt-1">{{ client.location or client.address or 'Zambia' }}</p>
+      <div class="flex flex-wrap gap-3 mt-4 text-sm">
+        {% if client.contact_name %}<span class="bg-white/10 px-3 py-1 rounded-lg">👤 {{ client.contact_name }}</span>{% endif %}
+        {% if client.email %}<a href="mailto:{{ client.email }}" class="bg-white/10 hover:bg-white/20 px-3 py-1 rounded-lg">✉ {{ client.email }}</a>{% endif %}
+        {% if client.phone %}<a href="tel:{{ client.phone }}" class="bg-white/10 hover:bg-white/20 px-3 py-1 rounded-lg">📞 {{ client.phone }}</a>{% endif %}
+        {% if client.website %}<a href="{{ client.website }}" target="_blank" class="bg-white/10 hover:bg-white/20 px-3 py-1 rounded-lg">🌐 Website</a>{% endif %}
+      </div>
+    </div>
+    <div class="sm:text-right shrink-0">
+      <div class="text-hive-200 text-xs uppercase">Total Contract Value</div>
+      <div class="text-3xl font-bold">{{ client.total_contracts | money }}</div>
+      <div class="text-emerald-300 text-sm mt-1">Received {{ client.total_received | money }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+  <div class="bg-white rounded-xl border p-4 text-center">
+    <div class="text-2xl font-bold text-slate-900">{{ client.project_count }}</div>
+    <div class="text-[10px] text-slate-500 uppercase mt-1">Total Projects</div>
+  </div>
+  <div class="bg-white rounded-xl border p-4 text-center">
+    <div class="text-2xl font-bold text-emerald-600">{{ client.completed_count }}</div>
+    <div class="text-[10px] text-slate-500 uppercase mt-1">Completed</div>
+  </div>
+  <div class="bg-white rounded-xl border p-4 text-center">
+    <div class="text-2xl font-bold text-amber-600">{{ client.active_count }}</div>
+    <div class="text-[10px] text-slate-500 uppercase mt-1">Active</div>
+  </div>
+  <div class="bg-white rounded-xl border p-4 text-center">
+    <div class="text-2xl font-bold text-red-500">{{ client.total_expenses | money }}</div>
+    <div class="text-[10px] text-slate-500 uppercase mt-1">Total Expenses</div>
+  </div>
+</div>
+
+<div class="bg-white rounded-2xl border shadow-sm overflow-hidden">
+  <div class="px-5 py-4 border-b flex items-center justify-between">
+    <h2 class="font-bold text-slate-900">Projects with {{ client.company }}</h2>
+    <a href="{{ url_for('project_new') }}" class="text-xs bg-hive-600 text-white px-3 py-1.5 rounded-lg">+ New Project</a>
+  </div>
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="bg-slate-50 text-[10px] uppercase text-slate-500">
+        <tr>
+          <th class="text-left px-5 py-3">Project</th>
+          <th class="text-left px-3 py-3">Status</th>
+          <th class="text-right px-3 py-3">Contract</th>
+          <th class="text-right px-3 py-3">Received</th>
+          <th class="text-center px-3 py-3">Days Left</th>
+          <th class="text-right px-5 py-3">Action</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y">
+        {% for p in client.projects %}
+        <tr class="hover:bg-slate-50">
+          <td class="px-5 py-3">
+            <a href="{{ url_for('project_detail', project_id=p.id) }}" class="font-semibold text-hive-700 hover:underline">{{ p.name }}</a>
+            <div class="text-[10px] text-slate-400">{{ p.start_date or '—' }} → {{ p.end_date or '—' }}</div>
+          </td>
+          <td class="px-3 py-3">
+            {% if p.status == 'ongoing' %}<span class="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">Ongoing</span>
+            {% elif p.status == 'pending' %}<span class="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Pending</span>
+            {% else %}<span class="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">Completed</span>{% endif %}
+          </td>
+          <td class="px-3 py-3 text-right font-medium">{{ p.contract_amount | money }}</td>
+          <td class="px-3 py-3 text-right text-emerald-600">{{ p.total_received | money }}</td>
+          <td class="px-3 py-3 text-center text-xs">
+            {% if p.days_left is not none and p.status != 'completed' %}
+              {% if p.days_left > 0 %}{{ p.days_left }}d{% else %}<span class="text-red-500">Overdue</span>{% endif %}
+            {% elif p.status == 'completed' %}Done
+            {% else %}—{% endif %}
+          </td>
+          <td class="px-5 py-3 text-right">
+            <a href="{{ url_for('project_detail', project_id=p.id) }}" class="text-xs text-hive-600 hover:underline">View →</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if client.address %}
+<div class="mt-4 bg-white rounded-xl border p-4 text-sm">
+  <span class="text-slate-400 text-xs uppercase">Address</span>
+  <p class="mt-1 text-slate-700">{{ client.address }}</p>
+</div>
+{% endif %}
+{% endblock %}
