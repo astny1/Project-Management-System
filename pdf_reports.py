@@ -9,6 +9,7 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import inch
+from reportlab.pdfgen import canvas
 from reportlab.platypus import Image, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from company_defaults import DEFAULT_ADDRESS, DEFAULT_EMAIL, DEFAULT_PHONE
@@ -23,7 +24,12 @@ BRAND_DARK = colors.HexColor("#115e59")
 SLATE = colors.HexColor("#64748b")
 BORDER = colors.HexColor("#e2e8f0")
 
+# Dark Blue Yellow Professional Construct Invoice template
+DOC_NAVY = colors.HexColor("#2d3743")
+DOC_GOLD = colors.HexColor("#ffbd59")
+
 PDF_MARGINS = dict(rightMargin=48, leftMargin=48, topMargin=42, bottomMargin=48)
+PAGE_W, PAGE_H = A4
 
 
 def _styles():
@@ -55,6 +61,215 @@ def company_contact_lines(company: dict) -> tuple[str, str, str]:
     phone = company.get("phone") or DEFAULT_PHONE
     address = company.get("address") or DEFAULT_ADDRESS
     return email, phone, address
+
+
+def _pretty_doc_date(value: str | None) -> str:
+    if not value:
+        return "—"
+    try:
+        return datetime.strptime(value[:10], "%Y-%m-%d").strftime("%d %B, %Y")
+    except ValueError:
+        return value[:10]
+
+
+def _zmw_amount(value: float) -> str:
+    """Line-item and total amounts in Kwacha (replaces $ in reference template)."""
+    return f"K {value:,.2f}"
+
+
+def _draw_terms_block(c, terms: str, x: float, y_top: float) -> None:
+    c.setFont("Helvetica-Bold", 10)
+    c.setFillColor(colors.black)
+    c.drawString(x, y_top, "Thank You For Your Business")
+    c.drawString(x, y_top - 14, "TERMS")
+    c.setFont("Helvetica", 10)
+    y = y_top - 28
+    for line in terms.splitlines():
+        line = line.strip()
+        if line:
+            c.drawString(x, y, line[:72])
+            y -= 13
+
+
+def _draw_commercial_document(
+    c: canvas.Canvas,
+    *,
+    company: dict,
+    doc_title: str,
+    doc_number: str,
+    record: dict,
+    items: list[dict],
+    generated_by: str,
+    date_label: str,
+    due_label: str,
+    due_value: str | None,
+) -> None:
+    """Layout based on Dark Blue Yellow Professional Construct Invoice.pdf."""
+    email, phone, address = company_contact_lines(company)
+    client_name = record.get("client_contact") or record.get("client_contact_name") or "—"
+
+    c.setFillColor(colors.white)
+    c.rect(0, 0, PAGE_W, PAGE_H, fill=1, stroke=0)
+
+    # Top navy header
+    c.setFillColor(DOC_NAVY)
+    c.rect(-10, PAGE_H - 260, PAGE_W + 20, 260, fill=1, stroke=0)
+
+    # Logo (top-left, unchanged asset)
+    if os.path.exists(LOGO_PATH):
+        c.drawImage(LOGO_PATH, 75, PAGE_H - 130, width=60, height=58, preserveAspectRatio=True, mask="auto")
+
+    # Bill-to panel (gold labels, white values)
+    rx, ty = 365, PAGE_H - 76
+    for label, value in (
+        ("To:", client_name),
+        ("Company :", record.get("client_company") or "—"),
+        ("Mail :", record.get("client_email") or "—"),
+    ):
+        c.setFillColor(DOC_GOLD)
+        c.setFont("Helvetica-Bold", 11)
+        c.drawString(rx, ty, label)
+        c.setFillColor(colors.white)
+        c.setFont("Helvetica", 11)
+        c.drawString(rx + 68, ty, str(value)[:42])
+        ty -= 48
+
+    # Yellow vertical bar + rotated document title
+    c.setFillColor(DOC_GOLD)
+    c.rect(59, PAGE_H - 521, 99, 322, fill=1, stroke=0)
+    c.saveState()
+    c.setFillColor(DOC_NAVY)
+    c.setFont("Helvetica-Bold", 46)
+    c.translate(108, PAGE_H - 360)
+    c.rotate(90)
+    c.drawCentredString(0, -16, doc_title)
+    c.restoreState()
+
+    # Table header band
+    table_top = PAGE_H - 260
+    table_h = 52
+    c.setFillColor(DOC_GOLD)
+    c.rect(211, table_top - table_h, 394, table_h, fill=1, stroke=0)
+    c.setFillColor(DOC_NAVY)
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(249, table_top - 32, "DESC")
+    c.drawString(424, table_top - 32, "PRICE")
+    c.drawString(360, table_top - 32, "QTY")
+    c.drawString(495, table_top - 32, "TOTAL")
+
+    # Line items
+    row_y = table_top - table_h - 18
+    row_step = 44
+    c.setFont("Helvetica", 11)
+    c.setFillColor(DOC_NAVY)
+    for item in items:
+        qty = float(item["quantity"])
+        price = float(item["unit_price"])
+        line_total = qty * price
+        c.drawString(249, row_y, str(item["description"])[:36])
+        c.drawRightString(464, row_y, _zmw_amount(price))
+        c.drawCentredString(372, row_y, f"{qty:g}")
+        c.drawRightString(540, row_y, _zmw_amount(line_total))
+        row_y -= row_step
+        c.setStrokeColor(colors.HexColor("#cbd5e1"))
+        c.setLineWidth(0.5)
+        c.line(213, row_y + 32, 553, row_y + 32)
+
+    # Subtotal / tax (if applicable)
+    subtotal = float(record.get("subtotal") or 0)
+    tax_rate = float(record.get("tax_rate") or 0)
+    tax_amount = float(record.get("tax_amount") or 0)
+    grand_total = float(record.get("total") or 0)
+    if tax_rate > 0:
+        row_y -= 8
+        c.setFont("Helvetica", 10)
+        c.drawString(396, row_y, "Subtotal")
+        c.drawRightString(576, row_y, _zmw_amount(subtotal))
+        row_y -= 16
+        c.drawString(396, row_y, f"Tax ({tax_rate:g}%)")
+        c.drawRightString(576, row_y, _zmw_amount(tax_amount))
+
+    # Grand total
+    row_y -= 24
+    c.setFont("Helvetica-Bold", 13)
+    c.drawString(396, row_y, "TOTAL")
+    c.drawRightString(576, row_y, f"ZMW {grand_total:,.2f}")
+
+    if record.get("amount_paid", 0) > 0:
+        row_y -= 18
+        c.setFont("Helvetica", 10)
+        paid = float(record["amount_paid"])
+        c.drawRightString(
+            576, row_y,
+            f"Paid: {_zmw_amount(paid)}   Balance: {_zmw_amount(grand_total - paid)}",
+        )
+
+    # Terms block
+    default_terms = (
+        "60% of payment is required before the start of any work\n"
+        "40% upon completing the work"
+    )
+    terms = (record.get("notes") or "").strip() or default_terms
+    _draw_terms_block(c, terms, 60, 250)
+
+    # Yellow meta band (invoice / quote details)
+    c.setFillColor(DOC_GOLD)
+    c.rect(59, 111, 323, 64, fill=1, stroke=0)
+    c.setFillColor(DOC_NAVY)
+    c.setFont("Helvetica-Bold", 11)
+    number_label = "Invoice No :" if doc_title == "INVOICE" else "Quote No :"
+    c.drawString(75, 163, number_label)
+    c.drawString(174, 163, date_label)
+    c.drawString(289, 163, due_label)
+    c.setFont("Helvetica", 11)
+    c.drawString(75, 139, doc_number)
+    c.drawString(174, 139, _pretty_doc_date(record.get("created_at")))
+    c.drawString(289, 139, _pretty_doc_date(due_value))
+
+    # Sales Manager (label fixed; name = document author)
+    c.setFont("Helvetica-Bold", 13)
+    c.drawString(412, 152, "Sales Manager")
+    c.setFont("Helvetica", 10)
+    c.drawCentredString(464, 135, generated_by[:28])
+
+    # Footer bar — company phone, address, email
+    c.setFillColor(DOC_NAVY)
+    c.rect(-10, 0, PAGE_W + 20, 73, fill=1, stroke=0)
+    c.setFillColor(colors.white)
+    c.setFont("Helvetica", 9)
+    c.drawString(99, 46, phone)
+    c.drawRightString(496, 46, address)
+    c.drawCentredString(PAGE_W / 2, 32, email)
+
+
+def _commercial_pdf(
+    company: dict,
+    doc_title: str,
+    doc_number: str,
+    record: dict,
+    items: list[dict],
+    generated_by: str,
+    date_label: str,
+    due_label: str,
+    due_value: str | None,
+) -> io.BytesIO:
+    buffer = io.BytesIO()
+    c = canvas.Canvas(buffer, pagesize=A4)
+    _draw_commercial_document(
+        c,
+        company=company,
+        doc_title=doc_title,
+        doc_number=doc_number,
+        record=record,
+        items=items,
+        generated_by=generated_by,
+        date_label=date_label,
+        due_label=due_label,
+        due_value=due_value,
+    )
+    c.save()
+    buffer.seek(0)
+    return buffer
 
 
 def _table_style(header: bool = False, kv: bool = False) -> TableStyle:
@@ -209,55 +424,31 @@ def _build_pdf(story_builders, company: dict, generated_by: str) -> io.BytesIO:
 
 
 def build_quotation_pdf(company: dict, quote: dict, items: list[dict], generated_by: str) -> io.BytesIO:
-    def build(story, styles):
-        meta = [f"Date: {quote.get('created_at', '')[:10]}", f"Valid until: {quote.get('valid_until') or '—'}"]
-        _standard_header(story, company, styles, "Quotation", quote["quote_number"], meta)
-        story.append(Paragraph(quote.get("title") or "Quotation", styles["title"]))
-        story.append(_bill_to_block(quote, styles))
-        story.append(Spacer(1, 0.12 * inch))
-        story.append(_line_items_table(items))
-        story.append(Spacer(1, 0.1 * inch))
-        story.append(_totals_block(quote["subtotal"], quote["tax_rate"], quote["tax_amount"], quote["total"]))
-        if quote.get("notes"):
-            story.append(Spacer(1, 0.12 * inch))
-            story.append(Paragraph("Notes", styles["heading"]))
-            story.append(Paragraph(quote["notes"], styles["body"]))
-        story.append(Spacer(1, 0.15 * inch))
-        story.append(Paragraph(
-            "Thank you for considering GrowthHive Media. We look forward to working with you.",
-            styles["small"],
-        ))
-    return _build_pdf(build, company, generated_by)
+    return _commercial_pdf(
+        company,
+        "QUOTATION",
+        quote["quote_number"],
+        quote,
+        items,
+        generated_by,
+        date_label="Quote Date :",
+        due_label="Valid Until :",
+        due_value=quote.get("valid_until"),
+    )
 
 
 def build_invoice_pdf(company: dict, invoice: dict, items: list[dict], generated_by: str) -> io.BytesIO:
-    balance = invoice["total"] - invoice.get("amount_paid", 0)
-
-    def build(story, styles):
-        meta = [
-            f"Date: {invoice.get('created_at', '')[:10]}",
-            f"Due: {invoice.get('due_date') or '—'}",
-            f"Status: {(invoice.get('status') or 'unpaid').replace('_', ' ').title()}",
-        ]
-        _standard_header(story, company, styles, "Invoice", invoice["invoice_number"], meta)
-        story.append(Paragraph(invoice.get("title") or "Invoice", styles["title"]))
-        story.append(_bill_to_block(invoice, styles))
-        story.append(Spacer(1, 0.12 * inch))
-        story.append(_line_items_table(items))
-        story.append(Spacer(1, 0.1 * inch))
-        extra = []
-        if invoice.get("amount_paid", 0) > 0:
-            extra.append(["Amount Paid", kwacha(invoice["amount_paid"])])
-            extra.append(["Balance Due", kwacha(balance)])
-        story.append(_totals_block(invoice["subtotal"], invoice["tax_rate"], invoice["tax_amount"], invoice["total"], extra))
-        if invoice.get("notes"):
-            story.append(Spacer(1, 0.12 * inch))
-            story.append(Paragraph("Payment Instructions", styles["heading"]))
-            story.append(Paragraph(
-                invoice["notes"] + "<br/><br/>Pay via Stanbic Bank Zambia — contact us for account details.",
-                styles["body"],
-            ))
-    return _build_pdf(build, company, generated_by)
+    return _commercial_pdf(
+        company,
+        "INVOICE",
+        invoice["invoice_number"],
+        invoice,
+        items,
+        generated_by,
+        date_label="Invoice Date :",
+        due_label="Due Date :",
+        due_value=invoice.get("due_date"),
+    )
 
 
 def build_financial_report_pdf(
