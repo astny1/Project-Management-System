@@ -35,6 +35,12 @@
       {% if can_access('projects_create') %}
       <a href="{{ url_for('project_new') }}" class="bg-white text-hive-800 hover:bg-hive-50 font-semibold px-3 py-2 sm:px-5 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm shadow transition">+ New Project</a>
       {% endif %}
+      {% if can_access('leads_view') %}
+      <a href="{{ url_for('leads') }}" class="bg-indigo-500/80 hover:bg-indigo-500 border border-indigo-400/30 text-white font-semibold px-3 py-2 sm:px-5 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm transition">Leads</a>
+      {% endif %}
+      {% if can_access('documents_view') %}
+      <a href="{{ url_for('documents') }}" class="bg-white/15 hover:bg-white/25 border border-white/20 text-white font-semibold px-3 py-2 sm:px-5 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm transition">Invoices & Quotes</a>
+      {% endif %}
       {% if can_access('maintenance_view') %}
       <a href="{{ url_for('maintenance') }}" class="bg-hive-600/50 hover:bg-hive-600 border border-hive-400/30 text-white font-semibold px-3 py-2 sm:px-5 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm transition">Maintenance</a>
       {% elif can_access('clients_view') %}
@@ -81,6 +87,39 @@
     </li>
     {% endfor %}
   </ul>
+</div>
+{% elif can_access('leads_view') or can_access('documents_view') %}
+<div class="mb-6 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border dark:border-slate-700 px-4 py-3 text-sm text-slate-500">
+  No urgent alerts. Use <a href="{{ url_for('leads') }}" class="text-hive-600 hover:underline">Leads</a> and
+  <a href="{{ url_for('documents') }}" class="text-hive-600 hover:underline">Documents</a> to track sales & billing.
+</div>
+{% endif %}
+
+{% if can_access('leads_view') or can_access('documents_view') %}
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+  {% if can_access('leads_view') %}
+  <a href="{{ url_for('leads') }}" class="bg-white dark:bg-slate-800 rounded-xl border dark:border-slate-700 p-4 hover:border-indigo-300 transition shadow-sm">
+    <div class="text-[10px] uppercase text-slate-400">Lead Pipeline</div>
+    <div class="text-2xl font-bold text-indigo-600 mt-1">{{ lead_count }}</div>
+    <div class="text-[10px] text-slate-400 mt-1">Prospects → projects</div>
+  </a>
+  {% endif %}
+  {% if can_access('documents_view') %}
+  <a href="{{ url_for('documents') }}" class="bg-white dark:bg-slate-800 rounded-xl border dark:border-slate-700 p-4 hover:border-hive-300 transition shadow-sm">
+    <div class="text-[10px] uppercase text-slate-400">Quotations</div>
+    <div class="text-2xl font-bold text-hive-700 mt-1">{{ quote_count }}</div>
+    <div class="text-[10px] text-slate-400 mt-1">PDF quotes</div>
+  </a>
+  <a href="{{ url_for('documents') }}" class="bg-white dark:bg-slate-800 rounded-xl border dark:border-slate-700 p-4 hover:border-emerald-300 transition shadow-sm">
+    <div class="text-[10px] uppercase text-slate-400">Invoices</div>
+    <div class="text-2xl font-bold text-emerald-600 mt-1">{{ invoice_count }}</div>
+    <div class="text-[10px] text-slate-400 mt-1">PDF invoices</div>
+  </a>
+  {% endif %}
+  <div class="bg-gradient-to-br from-hive-700 to-hive-900 rounded-xl p-4 text-white col-span-2 sm:col-span-1">
+    <div class="text-[10px] uppercase text-hive-200">Company PDFs</div>
+    <div class="text-xs mt-2 leading-relaxed text-hive-100">776 Mukuba Natwenge, Kitwe<br>info@growhivemedea.com</div>
+  </div>
 </div>
 {% endif %}
 
@@ -179,13 +218,22 @@
 
 <!-- Quick modules -->
 {% if g.user.role == 'admin' %}
-<div class="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-6">
+<div class="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-8 gap-2 mb-6">
+  <a href="{{ url_for('leads') }}" class="bg-white border border-slate-100 rounded-xl p-3 text-center hover:border-indigo-300 hover:shadow-md transition shadow-sm text-xs font-semibold text-slate-700 hover:text-indigo-700">Leads</a>
+  <a href="{{ url_for('documents') }}" class="bg-white border border-slate-100 rounded-xl p-3 text-center hover:border-hive-300 hover:shadow-md transition shadow-sm text-xs font-semibold text-slate-700 hover:text-hive-700">Documents</a>
   <a href="{{ url_for('reserves') }}" class="bg-white border border-slate-100 rounded-xl p-3 text-center hover:border-blue-300 hover:shadow-md transition shadow-sm text-xs font-semibold text-slate-700 hover:text-blue-700">Reserves</a>
   <a href="{{ url_for('investments') }}" class="bg-white border border-slate-100 rounded-xl p-3 text-center hover:border-indigo-300 hover:shadow-md transition shadow-sm text-xs font-semibold text-slate-700 hover:text-indigo-700">Investments</a>
   <a href="{{ url_for('accounting') }}" class="bg-white border border-slate-100 rounded-xl p-3 text-center hover:border-emerald-300 hover:shadow-md transition shadow-sm text-xs font-semibold text-slate-700 hover:text-emerald-700">Accounting</a>
   <a href="{{ url_for('company_expenses') }}" class="bg-white border border-slate-100 rounded-xl p-3 text-center hover:border-red-300 hover:shadow-md transition shadow-sm text-xs font-semibold text-slate-700 hover:text-red-700">Expenses</a>
   <a href="{{ url_for('auditing') }}" class="bg-white border border-slate-100 rounded-xl p-3 text-center hover:border-slate-300 hover:shadow-md transition shadow-sm text-xs font-semibold text-slate-700">Auditing</a>
   <a href="{{ url_for('clients') }}" class="bg-white border border-slate-100 rounded-xl p-3 text-center hover:border-violet-300 hover:shadow-md transition shadow-sm text-xs font-semibold text-slate-700 hover:text-violet-700">Clients</a>
+</div>
+{% elif g.user.role == 'sales_manager' %}
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6">
+  <a href="{{ url_for('leads') }}" class="bg-white border rounded-xl p-3 text-center text-xs font-semibold hover:border-indigo-300 shadow-sm">Leads</a>
+  <a href="{{ url_for('documents') }}" class="bg-white border rounded-xl p-3 text-center text-xs font-semibold hover:border-hive-300 shadow-sm">Documents</a>
+  <a href="{{ url_for('clients') }}" class="bg-white border rounded-xl p-3 text-center text-xs font-semibold hover:border-violet-300 shadow-sm">Clients</a>
+  <a href="{{ url_for('accounting') }}" class="bg-white border rounded-xl p-3 text-center text-xs font-semibold hover:border-emerald-300 shadow-sm">Finances</a>
 </div>
 {% endif %}
 

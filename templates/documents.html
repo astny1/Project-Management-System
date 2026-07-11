@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Documents{% endblock %}
+{% block content %}
+<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+  <div>
+    <h1 class="text-2xl font-bold text-slate-900 dark:text-white">Invoices & Quotations</h1>
+    <p class="text-slate-500 text-sm mt-1">Standard GrowthHive PDFs — Kitwe · info@growhivemedea.com · 0978891454</p>
+  </div>
+</div>
+
+<div class="bg-hive-50 dark:bg-hive-900/20 border border-hive-200 dark:border-hive-800 rounded-xl p-4 mb-6 text-sm text-hive-900 dark:text-hive-100">
+  <strong>How to create documents:</strong> open any project → use <strong>+ Quotation PDF</strong> or <strong>+ Invoice PDF</strong>,
+  add line items, then download the PDF. All documents share the same company letterhead.
+</div>
+
+{% if projects %}
+<div class="bg-white dark:bg-slate-800 rounded-xl border dark:border-slate-700 p-4 mb-6">
+  <div class="text-xs uppercase text-slate-400 mb-2">Quick create from project</div>
+  <div class="flex flex-wrap gap-2">
+    {% for p in projects[:8] %}
+    <a href="{{ url_for('project_detail', project_id=p.id) }}" class="text-xs px-3 py-1.5 rounded-lg border dark:border-slate-600 hover:border-hive-400">{{ p.client_company }}</a>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+  <div class="bg-white dark:bg-slate-800 rounded-xl border dark:border-slate-700 overflow-hidden">
+    <div class="px-5 py-3 border-b dark:border-slate-700 bg-indigo-50 dark:bg-indigo-900/20">
+      <h2 class="font-semibold text-sm text-indigo-900 dark:text-indigo-200">Quotations ({{ quotes|length }})</h2>
+    </div>
+    <table class="w-full text-sm">
+      <tbody class="divide-y dark:divide-slate-700">
+        {% for q in quotes %}
+        <tr>
+          <td class="px-5 py-3">
+            <div class="font-medium">{{ q.quote_number }}</div>
+            <div class="text-[10px] text-slate-400">{{ q.client_company }} · {{ q.project_name or '—' }}</div>
+          </td>
+          <td class="px-3 py-3 text-right font-bold">{{ q.total | money }}</td>
+          <td class="px-5 py-3 text-right">
+            <a href="{{ url_for('quotation_pdf', quote_id=q.id) }}" class="text-xs text-hive-600 hover:underline font-medium">PDF ↓</a>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="3" class="px-5 py-8 text-center text-slate-400 text-sm">No quotations yet. Open a project to create one.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="bg-white dark:bg-slate-800 rounded-xl border dark:border-slate-700 overflow-hidden">
+    <div class="px-5 py-3 border-b dark:border-slate-700 bg-emerald-50 dark:bg-emerald-900/20">
+      <h2 class="font-semibold text-sm text-emerald-900 dark:text-emerald-200">Invoices ({{ invoices|length }})</h2>
+    </div>
+    <table class="w-full text-sm">
+      <tbody class="divide-y dark:divide-slate-700">
+        {% for inv in invoices %}
+        <tr>
+          <td class="px-5 py-3">
+            <div class="font-medium">{{ inv.invoice_number }}</div>
+            <div class="text-[10px] text-slate-400">{{ inv.client_company }} · {{ inv.status }} · due {{ inv.due_date or '—' }}</div>
+          </td>
+          <td class="px-3 py-3 text-right font-bold">{{ inv.total | money }}</td>
+          <td class="px-5 py-3 text-right">
+            <a href="{{ url_for('invoice_pdf', invoice_id=inv.id) }}" class="text-xs text-hive-600 hover:underline font-medium">PDF ↓</a>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="3" class="px-5 py-8 text-center text-slate-400 text-sm">No invoices yet. Open a project to create one.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

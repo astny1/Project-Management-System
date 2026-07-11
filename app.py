@@ -48,6 +48,11 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "growthhive-dev-secret-change-in-production")
 app.jinja_env.filters["money"] = kwacha
 
+try:
+    migrate_db()
+except Exception:
+    pass
+
 
 def login_required(view):
     @wraps(view)
@@ -237,6 +242,15 @@ def dashboard():
             "SELECT * FROM audit_log ORDER BY created_at DESC LIMIT 5"
         ).fetchall()
         alerts = dashboard_alerts(conn, projects)
+        lead_count = conn.execute("SELECT COUNT(*) AS c FROM leads").fetchone()["c"]
+        quote_count = conn.execute("SELECT COUNT(*) AS c FROM quotations").fetchone()["c"]
+        invoice_count = conn.execute("SELECT COUNT(*) AS c FROM invoices").fetchone()["c"]
+        recent_quotes = conn.execute(
+            "SELECT q.*, p.name AS project_name FROM quotations q LEFT JOIN projects p ON p.id=q.project_id ORDER BY q.created_at DESC LIMIT 5"
+        ).fetchall()
+        recent_invoices = conn.execute(
+            "SELECT i.*, p.name AS project_name FROM invoices i LEFT JOIN projects p ON p.id=i.project_id ORDER BY i.created_at DESC LIMIT 5"
+        ).fetchall()
     return render_template(
         "dashboard.html",
         projects=projects,
@@ -245,6 +259,11 @@ def dashboard():
         clients=clients,
         recent_logs=recent_logs,
         alerts=alerts,
+        lead_count=lead_count,
+        quote_count=quote_count,
+        invoice_count=invoice_count,
+        recent_quotes=recent_quotes,
+        recent_invoices=recent_invoices,
     )
 
 
@@ -1051,6 +1070,28 @@ def monthly_report_pdf(project_id):
         log_audit(conn, g.user, "Generated project report PDF", "project", project_id, month_label)
     filename = f"{project['name'].replace(' ', '_')}_{month_label.replace(' ', '_')}_Report.pdf"
     return send_file(buffer, as_attachment=True, download_name=filename, mimetype="application/pdf")
+
+
+@app.route("/documents")
+@permission_required("documents_view")
+def documents():
+    with get_db() as conn:
+        quotes = conn.execute(
+            """
+            SELECT q.*, p.name AS project_name FROM quotations q
+            LEFT JOIN projects p ON p.id = q.project_id
+            ORDER BY q.created_at DESC
+            """
+        ).fetchall()
+        invoices = conn.execute(
+            """
+            SELECT i.*, p.name AS project_name FROM invoices i
+            LEFT JOIN projects p ON p.id = i.project_id
+            ORDER BY i.created_at DESC
+            """
+        ).fetchall()
+        projects = conn.execute("SELECT id, name, client_company FROM projects ORDER BY name").fetchall()
+    return render_template("documents.html", quotes=quotes, invoices=invoices, projects=projects)
 
 
 @app.route("/leads")
