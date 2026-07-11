@@ -79,23 +79,23 @@
 <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
   <div class="bg-white rounded-xl border p-4">
     <div class="text-[10px] uppercase text-slate-500">YTD Total Revenue</div>
-    <div class="text-xl font-bold text-emerald-600">{{ ytd_revenue | money }}</div>
-    <div class="text-[10px] text-slate-400">Projects {{ ytd_project_revenue | money }} + Investments {{ ytd_investment | money }}</div>
+    <div class="text-xl font-bold text-indigo-600">{{ ytd_revenue | money }}</div>
+    <div class="text-[10px] text-slate-400">Project profit {{ ytd_project_profit | money }} + Investments {{ ytd_investment | money }}</div>
   </div>
   <div class="bg-white rounded-xl border p-4">
-    <div class="text-[10px] uppercase text-slate-500">YTD Profit</div>
+    <div class="text-[10px] uppercase text-slate-500">YTD Income Received</div>
+    <div class="text-xl font-bold text-emerald-600">{{ ytd_project_income | money }}</div>
+    <div class="text-[10px] text-slate-400">Cash collected from projects (gross)</div>
+  </div>
+  <div class="bg-white rounded-xl border p-4">
+    <div class="text-[10px] uppercase text-slate-500">YTD Net Profit</div>
     <div class="text-xl font-bold text-hive-700">{{ ytd_profit | money }}</div>
-    <div class="text-[10px] text-slate-400">Includes investment profit</div>
-  </div>
-  <div class="bg-white rounded-xl border p-4">
-    <div class="text-[10px] uppercase text-slate-500">Profit Target</div>
-    <div class="text-xl font-bold text-amber-600">{{ ytd_target | money }}</div>
-    <div class="text-[10px] text-slate-400">Monthly goal: {{ company.monthly_profit_target | money }}</div>
+    <div class="text-[10px] text-slate-400">After company expenses</div>
   </div>
   <div class="bg-white rounded-xl border p-4">
     <div class="text-[10px] uppercase text-slate-500">Investment Returns</div>
     <div class="text-xl font-bold text-blue-600">{{ ytd_investment | money }}</div>
-    <div class="text-[10px] text-slate-400">Goal: {{ company.yearly_investment_goal | money }}/yr</div>
+    <div class="text-[10px] text-slate-400">From investment profit entries · Goal {{ company.yearly_investment_goal | money }}/yr</div>
   </div>
 </div>
 
@@ -117,11 +117,13 @@
       <thead class="bg-slate-50 text-[10px] uppercase text-slate-500">
         <tr>
           <th class="text-left px-5 py-2">Month</th>
-          <th class="text-right px-3 py-2">Project Rev.</th>
+          <th class="text-right px-3 py-2">Income Recv.</th>
+          <th class="text-right px-3 py-2">Proj. Expenses</th>
+          <th class="text-right px-3 py-2">Project Profit</th>
           <th class="text-right px-3 py-2">Inv. Profit</th>
-          <th class="text-right px-3 py-2">Total Rev.</th>
-          <th class="text-right px-3 py-2">Expenses</th>
-          <th class="text-right px-3 py-2">Profit</th>
+          <th class="text-right px-3 py-2">Total Revenue</th>
+          <th class="text-right px-3 py-2">Co. Expenses</th>
+          <th class="text-right px-3 py-2">Net Profit</th>
           <th class="text-right px-3 py-2">Target</th>
           <th class="text-center px-5 py-2">Status</th>
         </tr>
@@ -130,10 +132,12 @@
         {% for m in months %}
         <tr>
           <td class="px-5 py-2 font-medium">{{ ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m.month-1] }}</td>
-          <td class="px-3 py-2 text-right text-emerald-600">{{ m.project_revenue | money }}</td>
+          <td class="px-3 py-2 text-right text-emerald-600">{{ m.project_income | money }}</td>
+          <td class="px-3 py-2 text-right text-red-400">{{ m.project_expenses | money }}</td>
+          <td class="px-3 py-2 text-right font-medium text-emerald-700">{{ m.project_profit | money }}</td>
           <td class="px-3 py-2 text-right text-indigo-600">{{ m.investment_profit | money }}</td>
-          <td class="px-3 py-2 text-right font-medium text-emerald-700">{{ m.revenue | money }}</td>
-          <td class="px-3 py-2 text-right text-red-500">{{ m.expenses | money }}</td>
+          <td class="px-3 py-2 text-right font-bold text-indigo-700">{{ m.revenue | money }}</td>
+          <td class="px-3 py-2 text-right text-red-500">{{ m.company_expenses | money }}</td>
           <td class="px-3 py-2 text-right font-bold">{{ m.profit | money }}</td>
           <td class="px-3 py-2 text-right text-amber-600">{{ m.profit_target | money }}</td>
           <td class="px-5 py-2 text-center">

@@ -22,6 +22,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from database import get_db, init_db, migrate_db
 from approvals import create_approval, review_approval
 from helpers import (
+    collection_status,
     company_financial_position,
     company_total_profit,
     days_remaining,
@@ -31,6 +32,7 @@ from helpers import (
     log_audit,
     month_report_detail,
     monthly_financials,
+    project_profit_amount,
     sync_investment_return,
     total_investment_profits,
     total_reserves,
@@ -122,12 +124,16 @@ def project_totals(conn, project_id: int) -> dict:
     ).fetchone()["total"]
     project = conn.execute("SELECT contract_amount FROM projects WHERE id = ?", (project_id,)).fetchone()
     contract = project["contract_amount"] if project else 0
+    profit = project_profit_amount(received, expenses, sub_paid)
     return {
         "expenses": expenses,
         "received": received,
         "sub_paid": sub_paid,
-        "remaining": contract - received,
-        "profit_estimate": received - expenses - sub_paid,
+        "remaining": max(contract - received, 0),
+        "profit": profit,
+        "total_revenue": profit,
+        "profit_estimate": profit,
+        "collection_status": collection_status(contract, received),
     }
 
 
@@ -137,6 +143,7 @@ def fetch_projects(conn):
         SELECT p.*,
             COALESCE((SELECT SUM(amount) FROM expenses e WHERE e.project_id = p.id), 0) AS total_expenses,
             COALESCE((SELECT SUM(amount) FROM payments_received pr WHERE pr.project_id = p.id), 0) AS total_received,
+            COALESCE((SELECT SUM(amount_paid) FROM subcontractors s WHERE s.project_id = p.id), 0) AS total_sub_paid,
             (SELECT COUNT(*) FROM subcontractors s WHERE s.project_id = p.id) AS subcontractor_count
         FROM projects p
         ORDER BY CASE p.status WHEN 'ongoing' THEN 0 WHEN 'pending' THEN 1 ELSE 2 END, p.updated_at DESC
@@ -145,7 +152,11 @@ def fetch_projects(conn):
     projects = []
     for row in rows:
         item = dict(row)
-        item["remaining_balance"] = item["contract_amount"] - item["total_received"]
+        item["remaining_balance"] = max(item["contract_amount"] - item["total_received"], 0)
+        item["collection_status"] = collection_status(item["contract_amount"], item["total_received"])
+        item["project_profit"] = project_profit_amount(
+            item["total_received"], item["total_expenses"], item["total_sub_paid"]
+        )
         item["days_left"] = days_remaining(item.get("end_date"))
         projects.append(item)
     return projects
@@ -165,11 +176,13 @@ def dashboard_stats(conn, projects):
         # Financial summary
         "total_contracts": financials["total_contract_value"],
         "total_received": financials["cash_from_projects"],
-        "total_income": financials["total_income"],
+        "income_received": financials["income_received"],
+        "total_income": financials["income_received"],
+        "project_profit": financials["project_profit"],
         "total_expenses": financials["total_expenses"],
         "remaining_to_collect": financials["remaining_to_collect"],
         "investment_profit": financials["investment_profit"],
-        "total_revenue": financials["total_contract_value"],
+        "total_revenue": financials["total_revenue"],
         "profit": financials["net_profit"],
         "net_profit": financials["net_profit"],
         "project_expenses": financials["project_expenses"],
@@ -467,7 +480,8 @@ def accounting():
         ytd_profit = sum(m["profit"] for m in months)
         ytd_target = sum(m["profit_target"] for m in months)
         ytd_investment = sum(m["investment_profit"] for m in months)
-        ytd_project_revenue = sum(m["project_revenue"] for m in months)
+        ytd_project_profit = sum(m["project_profit"] for m in months)
+        ytd_project_income = sum(m["project_income"] for m in months)
     chart_labels = [month_name[m["month"]][:3] for m in months]
     return render_template(
         "accounting.html",
@@ -479,7 +493,8 @@ def accounting():
         ytd_profit=ytd_profit,
         ytd_target=ytd_target,
         ytd_investment=ytd_investment,
-        ytd_project_revenue=ytd_project_revenue,
+        ytd_project_profit=ytd_project_profit,
+        ytd_project_income=ytd_project_income,
         chart_labels=json.dumps(chart_labels),
         chart_profit=json.dumps([m["profit"] for m in months]),
         chart_target=json.dumps([m["profit_target"] for m in months]),
@@ -651,6 +666,35 @@ def team_update_role(user_id):
     return redirect(url_for("team"))
 
 
+def _initial_collection_amount(form, contract_amount: float) -> float:
+    status = form.get("collection_status", "pending")
+    if status == "full":
+        return contract_amount
+    if status == "partial":
+        return min(float(form.get("collected_amount") or 0), contract_amount)
+    return 0.0
+
+
+def _record_project_payment(conn, project_id: int, amount: float, description: str):
+    if amount <= 0:
+        return
+    payload = {
+        "project_id": project_id,
+        "amount": amount,
+        "description": description,
+        "payment_date": datetime.now().strftime("%Y-%m-%d"),
+    }
+    if requires_approval(g.user["role"]):
+        create_approval(conn, g.user, "add_payment", payload, "project", project_id)
+        flash("Initial payment submitted for admin approval.", "warning")
+    else:
+        conn.execute(
+            "INSERT INTO payments_received (project_id, amount, description, payment_date) VALUES (?, ?, ?, ?)",
+            (project_id, amount, description, payload["payment_date"]),
+        )
+        log_audit(conn, g.user, "Recorded initial payment", "project", project_id, kwacha(amount))
+
+
 @app.route("/projects/new", methods=["GET", "POST"])
 @permission_required("projects_create")
 def project_new():
@@ -670,8 +714,10 @@ def project_new():
             )
             pid = conn.execute("SELECT last_insert_rowid() AS id").fetchone()["id"]
             log_audit(conn, g.user, "Created project", "project", pid, data["name"])
+            collected = _initial_collection_amount(request.form, data["contract_amount"])
+            _record_project_payment(conn, pid, collected, "Initial collection on project setup")
         flash("Project created successfully.", "success")
-        return redirect(url_for("dashboard"))
+        return redirect(url_for("project_detail", project_id=pid))
     return render_template("project_form.html", project=None, title="New Project")
 
 

@@ -30,7 +30,7 @@
 </div>
 
 {% if can_access('finances_view') %}
-<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
   <div class="bg-white rounded-xl border p-4">
     <div class="text-[10px] text-slate-500 uppercase">Contract Value</div>
     <div class="text-lg font-bold mt-1">{{ project.contract_amount | money }}</div>
@@ -38,7 +38,7 @@
   <div class="bg-white rounded-xl border p-4">
     <div class="text-[10px] text-slate-500 uppercase">Income Received</div>
     <div class="text-lg font-bold text-emerald-600 mt-1">{{ totals.received | money }}</div>
-    <div class="text-[9px] text-slate-400">Before expenses</div>
+    <div class="text-[9px] text-slate-400">Cash collected</div>
   </div>
   <div class="bg-white rounded-xl border p-4">
     <div class="text-[10px] text-slate-500 uppercase">Expenses</div>
@@ -47,17 +47,20 @@
   <div class="bg-white rounded-xl border p-4">
     <div class="text-[10px] text-slate-500 uppercase">Still to Collect</div>
     <div class="text-lg font-bold text-amber-600 mt-1">{{ totals.remaining | money }}</div>
-    <div class="text-[9px] text-slate-400">Client balance due</div>
+    <div class="text-[9px] mt-0.5">
+      {% if totals.collection_status == 'collected' %}
+      <span class="text-emerald-600 font-medium">● Collected</span>
+      {% elif totals.collection_status == 'partial' %}
+      <span class="text-amber-600 font-medium">● Partially collected</span>
+      {% else %}
+      <span class="text-slate-400">● Not yet collected</span>
+      {% endif %}
+    </div>
   </div>
-  <div class="bg-white rounded-xl border p-4">
-    <div class="text-[10px] text-slate-500 uppercase">Project Profit</div>
-    <div class="text-lg font-bold text-hive-700 mt-1">{{ totals.profit_estimate | money }}</div>
-    <div class="text-[9px] text-slate-400">Received − costs</div>
-  </div>
-  <div class="bg-emerald-50 rounded-xl border border-emerald-100 p-4">
-    <div class="text-[10px] text-emerald-700 uppercase">After Expenses</div>
-    <div class="text-lg font-bold text-emerald-700 mt-1">{{ (totals.received - totals.expenses) | money }}</div>
-    <div class="text-[9px] text-emerald-600">Income minus expenses</div>
+  <div class="bg-hive-50 rounded-xl border border-hive-100 p-4">
+    <div class="text-[10px] text-hive-700 uppercase">Total Revenue (Profit)</div>
+    <div class="text-lg font-bold text-hive-700 mt-1">{{ totals.total_revenue | money }}</div>
+    <div class="text-[9px] text-hive-600">Received − expenses{% if totals.sub_paid %} − subs{% endif %}</div>
   </div>
 </div>
 {% elif can_access('operations_view') %}

@@ -70,38 +70,57 @@ def fetch_investments(conn) -> list[dict]:
     return result
 
 
+def collection_status(contract: float, received: float) -> str:
+    """pending | partial | collected"""
+    if contract <= 0:
+        return "none"
+    if received >= contract:
+        return "collected"
+    if received > 0:
+        return "partial"
+    return "pending"
+
+
+def project_profit_amount(received: float, expenses: float, sub_paid: float = 0) -> float:
+    return received - expenses - sub_paid
+
+
 def company_total_profit(conn, projects: list[dict]) -> dict:
     """Company-wide financial summary (ZMW)."""
     total_contract_value = sum(p["contract_amount"] for p in projects)
     cash_from_projects = sum(p["total_received"] for p in projects)
     project_expenses = sum(p["total_expenses"] for p in projects)
+    subcontractor_paid = sum(p.get("total_sub_paid", 0) for p in projects)
+    project_profit = sum(
+        project_profit_amount(p["total_received"], p["total_expenses"], p.get("total_sub_paid", 0))
+        for p in projects
+    )
     investment_profit = total_investment_profits(conn)
     general_expenses = conn.execute(
         "SELECT COALESCE(SUM(amount), 0) AS t FROM expenses WHERE project_id IS NULL"
     ).fetchone()["t"]
-    subcontractor_paid = conn.execute(
-        "SELECT COALESCE(SUM(amount_paid), 0) AS t FROM subcontractors"
-    ).fetchone()["t"]
 
-    total_income = cash_from_projects + investment_profit
     total_expenses = project_expenses + general_expenses + subcontractor_paid
-    remaining_to_collect = total_contract_value - cash_from_projects
-    net_profit = total_income - total_expenses
+    remaining_to_collect = sum(max(p["contract_amount"] - p["total_received"], 0) for p in projects)
+    total_revenue = project_profit + investment_profit
+    net_profit = total_revenue - general_expenses
 
     return {
         "total_contract_value": total_contract_value,
         "cash_from_projects": cash_from_projects,
+        "income_received": cash_from_projects,
+        "project_profit": project_profit,
         "investment_profit": investment_profit,
-        "total_income": total_income,
+        "total_revenue": total_revenue,
         "total_expenses": total_expenses,
         "project_expenses": project_expenses,
         "company_expenses": general_expenses,
         "subcontractor_paid": subcontractor_paid,
         "remaining_to_collect": remaining_to_collect,
         "net_profit": net_profit,
-        # Legacy keys used elsewhere
-        "project_revenue": cash_from_projects,
-        "total_revenue": total_income,
+        # Legacy keys
+        "total_income": cash_from_projects,
+        "project_revenue": project_profit,
         "total_profit": net_profit,
     }
 
@@ -203,7 +222,7 @@ def fetch_clients(projects: list[dict]) -> list[dict]:
 def monthly_financials(conn, year: int) -> list[dict]:
     months = []
     for month in range(1, 13):
-        revenue = conn.execute(
+        project_income = conn.execute(
             """
             SELECT COALESCE(SUM(amount), 0) AS t FROM payments_received
             WHERE strftime('%Y', payment_date) = ? AND strftime('%m', payment_date) = ?
@@ -217,7 +236,6 @@ def monthly_financials(conn, year: int) -> list[dict]:
             """,
             (str(year), f"{month:02d}"),
         ).fetchone()["t"]
-        total_revenue = revenue + investment_profit
         project_expenses = conn.execute(
             """
             SELECT COALESCE(SUM(amount), 0) AS t FROM expenses
@@ -234,17 +252,23 @@ def monthly_financials(conn, year: int) -> list[dict]:
             """,
             (str(year), f"{month:02d}"),
         ).fetchone()["t"]
+        project_profit = project_income - project_expenses
+        total_revenue = project_profit + investment_profit
         total_expenses = project_expenses + company_expenses
-        profit = total_revenue - total_expenses
+        profit = total_revenue - company_expenses
         target_row = conn.execute(
             "SELECT * FROM monthly_targets WHERE year = ? AND month = ?", (year, month)
         ).fetchone()
         months.append(
             {
                 "month": month,
-                "project_revenue": revenue,
+                "project_income": project_income,
+                "project_expenses": project_expenses,
+                "project_profit": project_profit,
+                "project_revenue": project_profit,
                 "investment_profit": investment_profit,
                 "revenue": total_revenue,
+                "company_expenses": company_expenses,
                 "expenses": total_expenses,
                 "profit": profit,
                 "revenue_target": target_row["revenue_target"] if target_row else 0,

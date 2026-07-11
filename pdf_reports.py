@@ -130,10 +130,12 @@ def build_financial_report_pdf(
 
     if scope == "month" and month_data:
         summary = [
-            ["Project Revenue", kwacha(month_data["project_revenue"])],
+            ["Income Received (Projects)", kwacha(month_data["project_income"])],
+            ["Project Expenses", kwacha(month_data["project_expenses"])],
+            ["Project Profit", kwacha(month_data["project_profit"])],
             ["Investment Returns", kwacha(month_data["investment_profit"])],
             ["Total Revenue", kwacha(month_data["revenue"])],
-            ["Total Expenses", kwacha(month_data["expenses"])],
+            ["Company Expenses", kwacha(month_data["company_expenses"])],
             ["Net Profit", kwacha(month_data["profit"])],
             ["Profit Target", kwacha(month_data["profit_target"])],
             ["Revenue Target", kwacha(month_data["revenue_target"])],
@@ -203,16 +205,19 @@ def build_financial_report_pdf(
     else:
         ytd_revenue = sum(m["revenue"] for m in months)
         ytd_profit = sum(m["profit"] for m in months)
-        ytd_expenses = sum(m["expenses"] for m in months)
         ytd_target = sum(m["profit_target"] for m in months)
         ytd_investment = sum(m["investment_profit"] for m in months)
+        ytd_project_profit = sum(m["project_profit"] for m in months)
+        ytd_project_income = sum(m["project_income"] for m in months)
+        ytd_company_expenses = sum(m["company_expenses"] for m in months)
 
         story.append(Paragraph("Year-to-Date Summary", styles["heading"]))
         story.append(_kv_table([
             ["Total Revenue", kwacha(ytd_revenue)],
-            ["Project Revenue", kwacha(sum(m["project_revenue"] for m in months))],
+            ["Project Profit", kwacha(ytd_project_profit)],
+            ["Income Received (Gross)", kwacha(ytd_project_income)],
             ["Investment Returns", kwacha(ytd_investment)],
-            ["Total Expenses", kwacha(ytd_expenses)],
+            ["Company Expenses", kwacha(ytd_company_expenses)],
             ["Net Profit", kwacha(ytd_profit)],
             ["Profit Target (YTD)", kwacha(ytd_target)],
             ["Stanbic Bank Balance", kwacha(position["bank_balance"])],
@@ -228,16 +233,17 @@ def build_financial_report_pdf(
             )
             month_rows.append([
                 MONTH_SHORT[m["month"] - 1],
-                kwacha(m["project_revenue"]),
+                kwacha(m["project_income"]),
+                kwacha(m["project_profit"]),
                 kwacha(m["investment_profit"]),
                 kwacha(m["revenue"]),
-                kwacha(m["expenses"]),
+                kwacha(m["company_expenses"]),
                 kwacha(m["profit"]),
                 kwacha(m["profit_target"]),
                 status,
             ])
         story.append(_data_table(
-            ["Month", "Proj. Rev.", "Inv.", "Total Rev.", "Expenses", "Profit", "Target", "Status"],
+            ["Month", "Income", "Proj. Profit", "Inv.", "Total Rev.", "Co. Exp.", "Net", "Target", "Status"],
             month_rows,
             col_widths=[0.5 * inch, 0.75 * inch, 0.65 * inch, 0.8 * inch, 0.75 * inch, 0.75 * inch, 0.75 * inch, 0.55 * inch],
         ))
@@ -297,7 +303,7 @@ def build_project_report_pdf(
         ["Total Received (All Time)", kwacha(totals["received"])],
         ["Total Expenses (All Time)", kwacha(totals["expenses"])],
         ["Remaining Balance", kwacha(totals["remaining"])],
-        ["Est. Profit", kwacha(totals["profit_estimate"])],
+        ["Total Revenue (Profit)", kwacha(totals["total_revenue"])],
         [f"Payments — {month_label}", kwacha(month_pay)],
         [f"Expenses — {month_label}", kwacha(month_exp)],
         ["Stanbic Bank Balance", kwacha(position["bank_balance"])],
