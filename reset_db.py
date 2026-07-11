@@ -53,7 +53,7 @@ def _insert_fresh_defaults(conn, include_team: bool = False) -> None:
         VALUES (1, ?, ?, ?, ?, ?, 0, 0, 0)
         """,
         (
-            "GrowthHive Media",
+            "GrowHive Media",
             DEFAULT_TAGLINE,
             DEFAULT_EMAIL,
             DEFAULT_PHONE,
@@ -68,7 +68,7 @@ def _insert_fresh_defaults(conn, include_team: bool = False) -> None:
         """,
         (
             "Stanbic Bank Zambia",
-            "GrowthHive Media — Main Account",
+            "GrowHive Media — Main Account",
             "",
             0.0,
             "Primary company operating account",
@@ -86,7 +86,7 @@ def ensure_single_stanbic_bank(conn, balance: float = 0.0) -> None:
         """,
         (
             "Stanbic Bank Zambia",
-            "GrowthHive Media — Main Account",
+            "GrowHive Media — Main Account",
             "",
             balance,
             "Primary company operating account",

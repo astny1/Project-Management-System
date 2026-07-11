@@ -41,7 +41,7 @@ def build_weekly_digest_html(conn) -> str:
 
     return f"""
     <div style="font-family:Inter,Arial,sans-serif;max-width:640px;color:#0f172a;">
-      <h2 style="color:#0f766e;margin:0 0 8px;">GrowthHive Media — Weekly Digest</h2>
+      <h2 style="color:#0f766e;margin:0 0 8px;">GrowHive Media — Weekly Digest</h2>
       <p style="color:#64748b;margin:0 0 16px;">Week ending {date.today().strftime('%d %b %Y')} · {NOTIFY_EMAIL}</p>
 
       <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">

@@ -16,7 +16,7 @@ def seed_financials(conn):
         """,
         (
             "Stanbic Bank Zambia",
-            "GrowthHive Media — Main Account",
+            "GrowHive Media — Main Account",
             "9130009876543",
             780000.0,
             "Primary company operating account",
@@ -123,7 +123,7 @@ def seed():
                 VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    "GrowthHive Media",
+                    "GrowHive Media",
                     DEFAULT_TAGLINE,
                     DEFAULT_EMAIL,
                     DEFAULT_PHONE,

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}GrowthHive Media{% endblock %} — Admin Panel</title>
+  <title>{% block title %}GrowHive Media{% endblock %} — Admin Panel</title>
   <link rel="icon" href="{{ url_for('static', filename='favicon/favicon.ico') }}" sizes="any">
   <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='favicon/favicon-32x32.png') }}">
   <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='favicon/favicon-16x16.png') }}">
@@ -68,10 +68,10 @@
       <div class="flex items-center justify-between h-16 gap-3">
         <a href="{{ url_for('dashboard') }}" class="flex items-center gap-3 shrink-0 min-w-0">
           <div class="w-10 h-10 rounded-xl bg-white/10 border border-white/20 p-1 flex items-center justify-center overflow-hidden shrink-0">
-            <img src="{{ url_for('static', filename='images/growthhive-logo.jpg') }}" alt="GrowthHive Media" class="w-full h-full object-contain rounded-lg">
+            <img src="{{ url_for('static', filename='images/growthhive-logo.jpg') }}" alt="GrowHive Media" class="w-full h-full object-contain rounded-lg">
           </div>
           <div class="hidden sm:block min-w-0">
-            <div class="font-semibold text-sm leading-tight truncate">GrowthHive Media</div>
+            <div class="font-semibold text-sm leading-tight truncate">GrowHive Media</div>
             <div class="text-hive-200 text-[10px] truncate">{{ g.user.name }} · {{ role_label(g.user.role) }}</div>
           </div>
         </a>

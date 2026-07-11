@@ -306,7 +306,7 @@ def _migrate_single_stanbic_bank(conn):
         """,
         (
             "Stanbic Bank Zambia",
-            "GrowthHive Media — Main Account",
+            "GrowHive Media — Main Account",
             "9130009876543",
             total,
             "Primary company operating account",
@@ -484,6 +484,17 @@ def _migrate_company_contact(conn):
             "UPDATE company_settings SET email=?, phone=?, address=?, tagline=? WHERE id=1",
             (email, phone, address, tagline),
         )
+    conn.execute(
+        "UPDATE company_settings SET company_name = ? WHERE id = 1 AND company_name = ?",
+        ("GrowHive Media", "GrowthHive Media"),
+    )
+    conn.execute(
+        """
+        UPDATE bank_accounts
+        SET account_label = REPLACE(account_label, 'GrowthHive Media', 'GrowHive Media')
+        WHERE account_label LIKE '%GrowthHive Media%'
+        """
+    )
 
 
 def _migrate_user_roles(conn):

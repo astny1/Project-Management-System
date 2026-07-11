@@ -1,4 +1,4 @@
-# Deploy GrowthHive Media on Render
+# Deploy GrowHive Media on Render
 
 Step-by-step guide to host this Flask app on [Render](https://render.com) (free tier).
 
@@ -25,7 +25,7 @@ cd "d:\MY PROJECTS\Project Mnagement"
 
 git init
 git add .
-git commit -m "Prepare GrowthHive for Render deployment"
+git commit -m "Prepare GrowHive for Render deployment"
 
 # Create a new empty repo on GitHub, then:
 git remote add origin https://github.com/YOUR_USERNAME/growthhive-media.git

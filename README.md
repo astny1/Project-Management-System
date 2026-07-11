@@ -1,6 +1,6 @@
-# GrowthHive Media — Project Management Platform
+# GrowHive Media — Project Management Platform
 
-A web-based project management platform for **GrowthHive Media** (Technology & Marketing company). Track client contracts, expenses, payments, subcontractors, and generate monthly reports per project.
+A web-based project management platform for **GrowHive Media** (Technology & Marketing company). Track client contracts, expenses, payments, subcontractors, and generate monthly reports per project.
 
 ## Features
 

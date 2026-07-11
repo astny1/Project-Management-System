@@ -319,7 +319,7 @@ def update_main_bank():
                 """,
                 (
                     "Stanbic Bank Zambia",
-                    "GrowthHive Media — Main Account",
+                    "GrowHive Media — Main Account",
                     request.form.get("account_number", "9130009876543").strip(),
                     balance,
                     "Primary company operating account",
@@ -580,9 +580,9 @@ def accounting_report_pdf():
         generated_by=g.user["name"],
     )
     if scope == "month":
-        filename = f"GrowthHive_Financial_{month_name[month]}_{year}.pdf"
+        filename = f"GrowHive_Financial_{month_name[month]}_{year}.pdf"
     else:
-        filename = f"GrowthHive_Financial_Year_{year}.pdf"
+        filename = f"GrowHive_Financial_Year_{year}.pdf"
     with get_db() as conn:
         log_audit(conn, g.user, f"Generated financial report ({scope})", "report", None, filename)
     return send_file(buffer, as_attachment=True, download_name=filename, mimetype="application/pdf")
