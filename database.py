@@ -276,6 +276,9 @@ def migrate_db(conn=None):
             """
         )
 
+        _migrate_business_modules(conn)
+        _migrate_company_contact(conn)
+
         if own_conn:
             conn.commit()
     finally:
@@ -309,6 +312,124 @@ def _migrate_single_stanbic_bank(conn):
         ),
     )
     conn.execute("UPDATE company_settings SET bank_balance = ? WHERE id = 1", (total,))
+
+
+def _migrate_business_modules(conn):
+    conn.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS leads (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            company_name TEXT NOT NULL,
+            contact_name TEXT,
+            email TEXT,
+            phone TEXT,
+            service_interest TEXT,
+            estimated_value REAL NOT NULL DEFAULT 0,
+            status TEXT NOT NULL DEFAULT 'new'
+                CHECK(status IN ('new', 'contacted', 'proposal', 'won', 'lost')),
+            notes TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS quotations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            quote_number TEXT UNIQUE NOT NULL,
+            project_id INTEGER,
+            lead_id INTEGER,
+            client_company TEXT NOT NULL,
+            client_contact TEXT,
+            client_email TEXT,
+            client_phone TEXT,
+            client_address TEXT,
+            title TEXT NOT NULL,
+            subtotal REAL NOT NULL DEFAULT 0,
+            tax_rate REAL NOT NULL DEFAULT 0,
+            tax_amount REAL NOT NULL DEFAULT 0,
+            total REAL NOT NULL DEFAULT 0,
+            valid_until TEXT,
+            status TEXT NOT NULL DEFAULT 'draft'
+                CHECK(status IN ('draft', 'sent', 'accepted', 'declined')),
+            notes TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL,
+            FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE SET NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS quotation_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            quotation_id INTEGER NOT NULL,
+            description TEXT NOT NULL,
+            quantity REAL NOT NULL DEFAULT 1,
+            unit_price REAL NOT NULL,
+            FOREIGN KEY (quotation_id) REFERENCES quotations(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS invoices (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            invoice_number TEXT UNIQUE NOT NULL,
+            project_id INTEGER,
+            quotation_id INTEGER,
+            client_company TEXT NOT NULL,
+            client_contact TEXT,
+            client_email TEXT,
+            client_phone TEXT,
+            client_address TEXT,
+            title TEXT NOT NULL,
+            subtotal REAL NOT NULL DEFAULT 0,
+            tax_rate REAL NOT NULL DEFAULT 0,
+            tax_amount REAL NOT NULL DEFAULT 0,
+            total REAL NOT NULL DEFAULT 0,
+            amount_paid REAL NOT NULL DEFAULT 0,
+            due_date TEXT,
+            status TEXT NOT NULL DEFAULT 'unpaid'
+                CHECK(status IN ('unpaid', 'partial', 'paid', 'overdue')),
+            notes TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL,
+            FOREIGN KEY (quotation_id) REFERENCES quotations(id) ON DELETE SET NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS invoice_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            invoice_id INTEGER NOT NULL,
+            description TEXT NOT NULL,
+            quantity REAL NOT NULL DEFAULT 1,
+            unit_price REAL NOT NULL,
+            FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS project_milestones (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_id INTEGER NOT NULL,
+            title TEXT NOT NULL,
+            due_date TEXT,
+            status TEXT NOT NULL DEFAULT 'pending'
+                CHECK(status IN ('pending', 'in_progress', 'completed')),
+            assigned_to TEXT,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+        );
+        """
+    )
+
+
+def _migrate_company_contact(conn):
+    from company_defaults import DEFAULT_ADDRESS, DEFAULT_EMAIL, DEFAULT_PHONE, DEFAULT_TAGLINE
+
+    row = conn.execute("SELECT email, phone, address, tagline FROM company_settings WHERE id = 1").fetchone()
+    if not row:
+        return
+    email = row["email"] or DEFAULT_EMAIL
+    phone = row["phone"] or DEFAULT_PHONE
+    address = row["address"] or DEFAULT_ADDRESS
+    tagline = row["tagline"] or DEFAULT_TAGLINE
+    if not row["email"] or not row["phone"] or not row["address"]:
+        conn.execute(
+            "UPDATE company_settings SET email=?, phone=?, address=?, tagline=? WHERE id=1",
+            (email, phone, address, tagline),
+        )
 
 
 def _migrate_user_roles(conn):

@@ -134,6 +134,62 @@
   </div>
 
   <div class="lg:col-span-2 space-y-4">
+    {% if can_access('documents_view') %}
+    <div class="bg-white rounded-xl border overflow-hidden">
+      <div class="px-5 py-3 border-b bg-slate-50 flex flex-wrap items-center justify-between gap-2">
+        <h2 class="font-semibold text-sm">Quotations & Invoices</h2>
+        <div class="flex gap-2">
+          <a href="{{ url_for('project_quote', project_id=project.id) }}" class="text-xs bg-indigo-600 text-white px-3 py-1 rounded-lg">+ Quotation PDF</a>
+          <a href="{{ url_for('project_invoice', project_id=project.id) }}" class="text-xs bg-hive-600 text-white px-3 py-1 rounded-lg">+ Invoice PDF</a>
+        </div>
+      </div>
+      <div class="grid sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x">
+        <div class="p-4">
+          <div class="text-[10px] uppercase text-slate-400 mb-2">Quotations</div>
+          {% for q in quotations %}
+          <div class="flex justify-between text-xs py-1">
+            <span>{{ q.quote_number }}</span>
+            <a href="{{ url_for('quotation_pdf', quote_id=q.id) }}" class="text-hive-600 hover:underline">PDF</a>
+          </div>
+          {% else %}<p class="text-xs text-slate-400">None yet</p>{% endfor %}
+        </div>
+        <div class="p-4">
+          <div class="text-[10px] uppercase text-slate-400 mb-2">Invoices</div>
+          {% for inv in invoices %}
+          <div class="flex justify-between text-xs py-1">
+            <span>{{ inv.invoice_number }} <span class="text-slate-400">({{ inv.status }})</span></span>
+            <a href="{{ url_for('invoice_pdf', invoice_id=inv.id) }}" class="text-hive-600 hover:underline">PDF</a>
+          </div>
+          {% else %}<p class="text-xs text-slate-400">None yet</p>{% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="bg-white rounded-xl border overflow-hidden">
+      <div class="px-5 py-3 border-b bg-slate-50"><h2 class="font-semibold text-sm">Project Milestones</h2></div>
+      {% if milestones %}
+      <table class="w-full text-xs">
+        <tbody class="divide-y">
+          {% for m in milestones %}
+          <tr>
+            <td class="px-5 py-2 font-medium">{{ m.title }}</td>
+            <td class="px-3 py-2 text-slate-500">{{ m.due_date or '—' }}</td>
+            <td class="px-3 py-2">{{ m.assigned_to or '—' }}</td>
+            <td class="px-5 py-2 text-right"><span class="px-2 py-0.5 rounded-full bg-slate-100">{{ m.status.replace('_',' ') }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}<p class="px-5 py-4 text-sm text-slate-400">No milestones yet.</p>{% endif %}
+      <form method="POST" action="{{ url_for('add_milestone', project_id=project.id) }}" class="px-5 py-3 border-t bg-slate-50 grid grid-cols-2 sm:grid-cols-5 gap-2">
+        <input name="title" placeholder="Milestone *" required class="px-2 py-1.5 text-xs border rounded sm:col-span-2">
+        <input type="date" name="due_date" class="px-2 py-1.5 text-xs border rounded">
+        <input name="assigned_to" placeholder="Assigned to" class="px-2 py-1.5 text-xs border rounded">
+        <button class="bg-hive-600 text-white text-xs rounded">Add</button>
+      </form>
+    </div>
+
     {% include 'partials/project_financials.html' %}
 
     <div class="bg-white rounded-xl border overflow-hidden">

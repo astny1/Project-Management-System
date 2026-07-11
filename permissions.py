@@ -12,12 +12,12 @@ ROLE_PERMISSIONS: dict[str, set[str]] = {
         "dashboard", "clients", "clients_view", "projects_view", "projects_create",
         "projects_edit", "reports", "finances_view", "accounting_view",
         "expenses_view", "reserves_view", "project_payments_request",
-        "project_expenses_request",
+        "project_expenses_request", "leads_view", "documents_view",
     },
     "project_manager": {
         "dashboard", "clients_view", "projects_view", "maintenance_view",
         "reports", "project_expenses_request", "subcontractors_request",
-        "operations_view",
+        "operations_view", "documents_view",
     },
 }
 
@@ -63,7 +63,7 @@ def can(role: str | None, permission: str) -> bool:
 NAV_GROUPS_BY_ROLE: dict[str, list[tuple[str, list[tuple[str, str]]]]] = {
     "admin": [
         ("", [("dashboard", "Dashboard")]),
-        ("Business", [("clients", "Clients"), ("maintenance", "Maintenance")]),
+        ("Business", [("clients", "Clients"), ("leads", "Leads"), ("maintenance", "Maintenance")]),
         ("Finance", [
             ("accounting", "Accounting"), ("reserves", "Reserves"),
             ("investments", "Investments"), ("company_expenses", "Expenses"),
@@ -76,7 +76,7 @@ NAV_GROUPS_BY_ROLE: dict[str, list[tuple[str, list[tuple[str, str]]]]] = {
     "sales_manager": [
         ("", [("dashboard", "Dashboard")]),
         ("Sales", [
-            ("clients", "Clients"), ("reserves", "Reserves"),
+            ("clients", "Clients"), ("leads", "Leads"), ("reserves", "Reserves"),
             ("accounting", "Finances"), ("company_expenses", "Expenses"),
         ]),
     ],

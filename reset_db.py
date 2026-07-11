@@ -6,6 +6,8 @@ import sys
 
 from werkzeug.security import generate_password_hash
 
+from company_defaults import DEFAULT_ADDRESS, DEFAULT_EMAIL, DEFAULT_PHONE, DEFAULT_TAGLINE
+
 from database import DB_PATH, get_db, init_db, migrate_db
 
 
@@ -52,10 +54,10 @@ def _insert_fresh_defaults(conn, include_team: bool = False) -> None:
         """,
         (
             "GrowthHive Media",
-            "Technology & Marketing Solutions",
-            "",
-            "",
-            "",
+            DEFAULT_TAGLINE,
+            DEFAULT_EMAIL,
+            DEFAULT_PHONE,
+            DEFAULT_ADDRESS,
         ),
     )
 

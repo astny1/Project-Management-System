@@ -341,3 +341,107 @@ def month_report_detail(conn, year: int, month: int) -> dict:
         "projects": [dict(r) for r in projects],
         "month_data": month_data,
     }
+
+
+def next_document_number(conn, table: str, column: str, prefix: str, year: int | None = None) -> str:
+    year = year or date.today().year
+    pattern = f"{prefix}-{year}-%"
+    row = conn.execute(
+        f"SELECT {column} FROM {table} WHERE {column} LIKE ? ORDER BY {column} DESC LIMIT 1",
+        (pattern + "%",),
+    ).fetchone()
+    seq = 1
+    if row and row[column]:
+        try:
+            seq = int(str(row[column]).split("-")[-1]) + 1
+        except ValueError:
+            seq = conn.execute(f"SELECT COUNT(*) AS c FROM {table} WHERE {column} LIKE ?", (pattern + "%",)).fetchone()["c"] + 1
+    return f"{prefix}-{year}-{seq:03d}"
+
+
+def parse_line_items(form) -> list[dict]:
+    descriptions = form.getlist("item_description")
+    quantities = form.getlist("item_quantity")
+    prices = form.getlist("item_unit_price")
+    items = []
+    for i, desc in enumerate(descriptions):
+        desc = (desc or "").strip()
+        if not desc:
+            continue
+        qty = float(quantities[i] if i < len(quantities) and quantities[i] else 1)
+        price = float(prices[i] if i < len(prices) and prices[i] else 0)
+        items.append({"description": desc, "quantity": qty, "unit_price": price, "line_total": qty * price})
+    return items
+
+
+def document_totals(items: list[dict], tax_rate: float = 0) -> dict:
+    subtotal = sum(i["line_total"] for i in items)
+    tax_amount = subtotal * (tax_rate / 100)
+    return {"subtotal": subtotal, "tax_rate": tax_rate, "tax_amount": tax_amount, "total": subtotal + tax_amount}
+
+
+def dashboard_alerts(conn, projects: list[dict]) -> list[dict]:
+    alerts: list[dict] = []
+    today = date.today().isoformat()
+
+    for p in projects:
+        if p["status"] == "ongoing" and p.get("remaining_balance", 0) > 0:
+            alerts.append({
+                "type": "collection",
+                "severity": "warning",
+                "message": f"{p['client_company']}: {kwacha(p['remaining_balance'])} still to collect on {p['name']}",
+                "url": f"/projects/{p['id']}",
+            })
+        days = p.get("days_left")
+        if p["status"] == "ongoing" and days is not None and days <= 7:
+            alerts.append({
+                "type": "deadline",
+                "severity": "urgent" if days <= 3 else "warning",
+                "message": f"{p['name']} due in {days} day(s)" if days > 0 else f"{p['name']} is overdue",
+                "url": f"/projects/{p['id']}",
+            })
+        if p.get("has_monthly_maintenance") and p["status"] == "ongoing":
+            pass  # summarized below
+
+    retainer_count = sum(1 for p in projects if p.get("has_monthly_maintenance") and p["status"] == "ongoing")
+    if retainer_count:
+        mrr = sum(p.get("maintenance_amount", 0) for p in projects if p.get("has_monthly_maintenance") and p["status"] == "ongoing")
+        alerts.append({
+            "type": "maintenance",
+            "severity": "info",
+            "message": f"{retainer_count} retainer client(s) — MRR {kwacha(mrr)}",
+            "url": "/maintenance",
+        })
+
+    overdue = conn.execute(
+        """
+        SELECT id, invoice_number, client_company, total, amount_paid, due_date
+        FROM invoices
+        WHERE status IN ('unpaid', 'partial', 'overdue')
+        AND due_date IS NOT NULL AND due_date < ?
+        ORDER BY due_date
+        LIMIT 10
+        """,
+        (today,),
+    ).fetchall()
+    for inv in overdue:
+        due = inv["total"] - inv["amount_paid"]
+        alerts.append({
+            "type": "invoice",
+            "severity": "urgent",
+            "message": f"Overdue invoice {inv['invoice_number']} — {inv['client_company']} ({kwacha(due)} due)",
+            "url": f"/invoices/{inv['id']}/pdf",
+        })
+
+    pending_leads = conn.execute(
+        "SELECT COUNT(*) AS c FROM leads WHERE status IN ('new', 'contacted', 'proposal')"
+    ).fetchone()["c"]
+    if pending_leads:
+        alerts.append({
+            "type": "leads",
+            "severity": "info",
+            "message": f"{pending_leads} active lead(s) in pipeline",
+            "url": "/leads",
+        })
+
+    return alerts[:12]

@@ -65,6 +65,25 @@
 })();
 </script>
 
+{% if alerts %}
+<div class="mb-6 bg-white dark:bg-slate-800 rounded-2xl border dark:border-slate-700 shadow-sm overflow-hidden">
+  <div class="px-4 py-3 border-b dark:border-slate-700 flex items-center justify-between">
+    <h2 class="font-bold text-sm text-slate-900 dark:text-white">Alerts & Reminders</h2>
+    <span class="text-[10px] text-slate-400">{{ alerts|length }} item(s)</span>
+  </div>
+  <ul class="divide-y dark:divide-slate-700 max-h-48 overflow-y-auto">
+    {% for a in alerts %}
+    <li>
+      <a href="{{ a.url }}" class="flex items-start gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-900/50 text-sm">
+        <span class="shrink-0 mt-0.5 w-2 h-2 rounded-full {% if a.severity == 'urgent' %}bg-red-500{% elif a.severity == 'warning' %}bg-amber-500{% else %}bg-blue-400{% endif %}"></span>
+        <span class="text-slate-700 dark:text-slate-200">{{ a.message }}</span>
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
 <!-- Company Finances (projects & profit — reserves shown separately) -->
 {% if can_access('finances_view') %}
 <div class="bg-white dark:bg-slate-800 rounded-2xl border dark:border-slate-700 shadow-sm p-4 sm:p-5 mb-6">

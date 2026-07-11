@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="max-w-3xl mx-auto mb-6">
+  <a href="{{ url_for('project_detail', project_id=project.id) }}" class="text-sm text-hive-600 hover:underline">&larr; Back to project</a>
+  <h1 class="text-2xl font-bold text-slate-900 dark:text-white mt-2">{{ title }}</h1>
+  <p class="text-sm text-slate-500">{{ project.client_company }} · {{ project.name }}</p>
+  <p class="text-xs text-slate-400 mt-1">PDF uses standard GrowthHive letterhead — Kitwe, info@growhivemedea.com, 0978891454</p>
+</div>
+
+<form method="POST" class="max-w-3xl mx-auto bg-white dark:bg-slate-800 rounded-xl border dark:border-slate-700 p-6 space-y-4">
+  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    <div class="sm:col-span-2">
+      <label class="text-sm font-medium">Document title</label>
+      <input name="title" value="{{ project.name }}" required class="w-full mt-1 px-3 py-2 border rounded-lg text-sm dark:bg-slate-900 dark:border-slate-600">
+    </div>
+    {% if doc_type == 'quotation' %}
+    <div>
+      <label class="text-sm font-medium">Valid until</label>
+      <input type="date" name="valid_until" class="w-full mt-1 px-3 py-2 border rounded-lg text-sm dark:bg-slate-900 dark:border-slate-600">
+    </div>
+    <div>
+      <label class="text-sm font-medium">Status</label>
+      <select name="status" class="w-full mt-1 px-3 py-2 border rounded-lg text-sm dark:bg-slate-900 dark:border-slate-600">
+        <option value="draft">Draft</option>
+        <option value="sent">Sent</option>
+      </select>
+    </div>
+    {% else %}
+    <div>
+      <label class="text-sm font-medium">Due date</label>
+      <input type="date" name="due_date" class="w-full mt-1 px-3 py-2 border rounded-lg text-sm dark:bg-slate-900 dark:border-slate-600">
+    </div>
+    {% endif %}
+    <div>
+      <label class="text-sm font-medium">Tax rate (%)</label>
+      <input type="number" name="tax_rate" step="0.01" value="0" class="w-full mt-1 px-3 py-2 border rounded-lg text-sm dark:bg-slate-900 dark:border-slate-600">
+    </div>
+  </div>
+
+  <div>
+    <div class="flex items-center justify-between mb-2">
+      <label class="text-sm font-semibold">Line items</label>
+      <button type="button" id="add-row" class="text-xs text-hive-600 font-medium">+ Add row</button>
+    </div>
+    <div id="line-items" class="space-y-2">
+      <div class="grid grid-cols-12 gap-2 line-row">
+        <input name="item_description" placeholder="Description" required class="col-span-6 px-2 py-2 border rounded text-sm dark:bg-slate-900 dark:border-slate-600">
+        <input name="item_quantity" type="number" step="0.01" value="1" class="col-span-2 px-2 py-2 border rounded text-sm dark:bg-slate-900 dark:border-slate-600">
+        <input name="item_unit_price" type="number" step="0.01" placeholder="Price ZMW" required class="col-span-3 px-2 py-2 border rounded text-sm dark:bg-slate-900 dark:border-slate-600">
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <label class="text-sm font-medium">Notes</label>
+    <textarea name="notes" rows="2" class="w-full mt-1 px-3 py-2 border rounded-lg text-sm dark:bg-slate-900 dark:border-slate-600" placeholder="Payment terms, scope, etc."></textarea>
+  </div>
+
+  <button type="submit" class="bg-hive-600 hover:bg-hive-700 text-white font-semibold px-6 py-2.5 rounded-lg">
+    Create &amp; Download PDF
+  </button>
+</form>
+
+<script>
+document.getElementById('add-row').addEventListener('click', function () {
+  var wrap = document.getElementById('line-items');
+  var row = wrap.querySelector('.line-row').cloneNode(true);
+  row.querySelectorAll('input').forEach(function (i) { if (i.name !== 'item_quantity') i.value = ''; });
+  wrap.appendChild(row);
+});
+</script>
+{% endblock %}

@@ -25,19 +25,23 @@ from helpers import (
     collection_status,
     company_financial_position,
     company_total_profit,
+    dashboard_alerts,
     days_remaining,
+    document_totals,
     fetch_clients,
     fetch_investments,
     kwacha,
     log_audit,
     month_report_detail,
     monthly_financials,
+    next_document_number,
+    parse_line_items,
     project_profit_amount,
     sync_investment_return,
     total_investment_profits,
     total_reserves,
 )
-from pdf_reports import build_financial_report_pdf, build_project_report_pdf
+from pdf_reports import build_financial_report_pdf, build_invoice_pdf, build_project_report_pdf, build_quotation_pdf
 from permissions import can, nav_groups, nav_items, requires_approval, role_label
 
 app = Flask(__name__)
@@ -232,6 +236,7 @@ def dashboard():
         recent_logs = conn.execute(
             "SELECT * FROM audit_log ORDER BY created_at DESC LIMIT 5"
         ).fetchall()
+        alerts = dashboard_alerts(conn, projects)
     return render_template(
         "dashboard.html",
         projects=projects,
@@ -239,6 +244,7 @@ def dashboard():
         stats=stats,
         clients=clients,
         recent_logs=recent_logs,
+        alerts=alerts,
     )
 
 
@@ -747,11 +753,22 @@ def project_detail(project_id):
         totals = project_totals(conn, project_id)
         company = conn.execute("SELECT * FROM company_settings WHERE id = 1").fetchone()
         position = company_financial_position(conn)
+        milestones = conn.execute(
+            "SELECT * FROM project_milestones WHERE project_id=? ORDER BY sort_order, due_date",
+            (project_id,),
+        ).fetchall()
+        quotations = conn.execute(
+            "SELECT * FROM quotations WHERE project_id=? ORDER BY created_at DESC", (project_id,)
+        ).fetchall()
+        invoices = conn.execute(
+            "SELECT * FROM invoices WHERE project_id=? ORDER BY created_at DESC", (project_id,)
+        ).fetchall()
     return render_template(
         "project_detail.html",
         project=project, expenses=expenses, payments=payments,
         subcontractors=subcontractors, totals=totals, company=company,
-        position=position, audits=audits,
+        position=position, audits=audits, milestones=milestones,
+        quotations=quotations, invoices=invoices,
     )
 
 
@@ -1034,6 +1051,254 @@ def monthly_report_pdf(project_id):
         log_audit(conn, g.user, "Generated project report PDF", "project", project_id, month_label)
     filename = f"{project['name'].replace(' ', '_')}_{month_label.replace(' ', '_')}_Report.pdf"
     return send_file(buffer, as_attachment=True, download_name=filename, mimetype="application/pdf")
+
+
+@app.route("/leads")
+@permission_required("leads_view")
+def leads():
+    with get_db() as conn:
+        items = conn.execute("SELECT * FROM leads ORDER BY updated_at DESC").fetchall()
+    return render_template("leads.html", leads=items)
+
+
+@app.route("/leads/add", methods=["POST"])
+@permission_required("leads_view")
+def add_lead():
+    with get_db() as conn:
+        conn.execute(
+            """
+            INSERT INTO leads (company_name, contact_name, email, phone, service_interest, estimated_value, status, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                request.form.get("company_name", "").strip(),
+                request.form.get("contact_name", "").strip(),
+                request.form.get("email", "").strip(),
+                request.form.get("phone", "").strip(),
+                request.form.get("service_interest", "").strip(),
+                float(request.form.get("estimated_value") or 0),
+                request.form.get("status", "new"),
+                request.form.get("notes", "").strip(),
+            ),
+        )
+        log_audit(conn, g.user, "Added lead", "lead", None, request.form.get("company_name", ""))
+    flash("Lead added.", "success")
+    return redirect(url_for("leads"))
+
+
+@app.route("/leads/<int:lead_id>/status", methods=["POST"])
+@permission_required("leads_view")
+def update_lead_status(lead_id):
+    with get_db() as conn:
+        conn.execute(
+            "UPDATE leads SET status=?, updated_at=datetime('now') WHERE id=?",
+            (request.form.get("status", "new"), lead_id),
+        )
+    return redirect(url_for("leads"))
+
+
+@app.route("/leads/<int:lead_id>/convert", methods=["POST"])
+@permission_required("projects_create")
+def convert_lead(lead_id):
+    with get_db() as conn:
+        lead = conn.execute("SELECT * FROM leads WHERE id=?", (lead_id,)).fetchone()
+        if not lead:
+            flash("Lead not found.", "error")
+            return redirect(url_for("leads"))
+        conn.execute(
+            """
+            INSERT INTO projects (
+                name, client_company, client_contact_name, client_email, client_phone,
+                client_address, client_website, client_location, contract_amount, payment_terms,
+                status, duration_weeks, has_monthly_maintenance, maintenance_amount,
+                start_date, end_date, description
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', 0, 0, 0, NULL, NULL, ?)
+            """,
+            (
+                f"{lead['company_name']} Project",
+                lead["company_name"],
+                lead["contact_name"],
+                lead["email"],
+                lead["phone"],
+                "",
+                "",
+                "Kitwe, Zambia",
+                lead["estimated_value"],
+                "",
+                lead["service_interest"] or "",
+            ),
+        )
+        pid = conn.execute("SELECT last_insert_rowid() AS id").fetchone()["id"]
+        conn.execute(
+            "UPDATE leads SET status='won', updated_at=datetime('now') WHERE id=?",
+            (lead_id,),
+        )
+        log_audit(conn, g.user, "Converted lead to project", "lead", lead_id, lead["company_name"])
+    flash("Lead converted to project.", "success")
+    return redirect(url_for("project_detail", project_id=pid))
+
+
+def _client_fields_from_project(project: dict) -> dict:
+    return {
+        "client_company": project["client_company"],
+        "client_contact": project.get("client_contact_name") or "",
+        "client_email": project.get("client_email") or "",
+        "client_phone": project.get("client_phone") or "",
+        "client_address": project.get("client_address") or project.get("client_location") or "",
+    }
+
+
+@app.route("/projects/<int:project_id>/milestones", methods=["POST"])
+@permission_required("projects_view")
+def add_milestone(project_id):
+    with get_db() as conn:
+        conn.execute(
+            """
+            INSERT INTO project_milestones (project_id, title, due_date, status, assigned_to, sort_order)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                project_id,
+                request.form.get("title", "").strip(),
+                request.form.get("due_date") or None,
+                request.form.get("status", "pending"),
+                request.form.get("assigned_to", "").strip(),
+                int(request.form.get("sort_order") or 0),
+            ),
+        )
+        log_audit(conn, g.user, "Added milestone", "project", project_id)
+    flash("Milestone added.", "success")
+    return redirect(url_for("project_detail", project_id=project_id))
+
+
+@app.route("/projects/<int:project_id>/quotes", methods=["GET", "POST"])
+@permission_required("documents_view")
+def project_quote(project_id):
+    with get_db() as conn:
+        project = conn.execute("SELECT * FROM projects WHERE id=?", (project_id,)).fetchone()
+        if not project:
+            flash("Project not found.", "error")
+            return redirect(url_for("dashboard"))
+        project = dict(project)
+        if request.method == "POST":
+            items = parse_line_items(request.form)
+            if not items:
+                flash("Add at least one line item.", "error")
+                return redirect(url_for("project_quote", project_id=project_id))
+            tax_rate = float(request.form.get("tax_rate") or 0)
+            totals = document_totals(items, tax_rate)
+            quote_no = next_document_number(conn, "quotations", "quote_number", "QUO")
+            client = _client_fields_from_project(project)
+            conn.execute(
+                """
+                INSERT INTO quotations (
+                    quote_number, project_id, client_company, client_contact, client_email,
+                    client_phone, client_address, title, subtotal, tax_rate, tax_amount, total,
+                    valid_until, status, notes
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    quote_no, project_id, client["client_company"], client["client_contact"],
+                    client["client_email"], client["client_phone"], client["client_address"],
+                    request.form.get("title", project["name"]).strip(),
+                    totals["subtotal"], totals["tax_rate"], totals["tax_amount"], totals["total"],
+                    request.form.get("valid_until") or None,
+                    request.form.get("status", "draft"),
+                    request.form.get("notes", "").strip(),
+                ),
+            )
+            qid = conn.execute("SELECT last_insert_rowid() AS id").fetchone()["id"]
+            for item in items:
+                conn.execute(
+                    "INSERT INTO quotation_items (quotation_id, description, quantity, unit_price) VALUES (?, ?, ?, ?)",
+                    (qid, item["description"], item["quantity"], item["unit_price"]),
+                )
+            log_audit(conn, g.user, "Created quotation", "quotation", qid, quote_no)
+            flash(f"Quotation {quote_no} created.", "success")
+            return redirect(url_for("quotation_pdf", quote_id=qid))
+    return render_template("document_form.html", project=project, doc_type="quotation", title="New Quotation")
+
+
+@app.route("/quotes/<int:quote_id>/pdf")
+@permission_required("documents_view")
+def quotation_pdf(quote_id):
+    with get_db() as conn:
+        quote = conn.execute("SELECT * FROM quotations WHERE id=?", (quote_id,)).fetchone()
+        if not quote:
+            flash("Quotation not found.", "error")
+            return redirect(url_for("dashboard"))
+        quote = dict(quote)
+        items = conn.execute(
+            "SELECT * FROM quotation_items WHERE quotation_id=?", (quote_id,)
+        ).fetchall()
+        company = dict(conn.execute("SELECT * FROM company_settings WHERE id=1").fetchone())
+    buffer = build_quotation_pdf(company, quote, [dict(i) for i in items], g.user["name"])
+    return send_file(buffer, as_attachment=True, download_name=f"{quote['quote_number']}.pdf", mimetype="application/pdf")
+
+
+@app.route("/projects/<int:project_id>/invoices", methods=["GET", "POST"])
+@permission_required("documents_view")
+def project_invoice(project_id):
+    with get_db() as conn:
+        project = conn.execute("SELECT * FROM projects WHERE id=?", (project_id,)).fetchone()
+        if not project:
+            flash("Project not found.", "error")
+            return redirect(url_for("dashboard"))
+        project = dict(project)
+        if request.method == "POST":
+            items = parse_line_items(request.form)
+            if not items:
+                flash("Add at least one line item.", "error")
+                return redirect(url_for("project_invoice", project_id=project_id))
+            tax_rate = float(request.form.get("tax_rate") or 0)
+            totals = document_totals(items, tax_rate)
+            inv_no = next_document_number(conn, "invoices", "invoice_number", "INV")
+            client = _client_fields_from_project(project)
+            conn.execute(
+                """
+                INSERT INTO invoices (
+                    invoice_number, project_id, client_company, client_contact, client_email,
+                    client_phone, client_address, title, subtotal, tax_rate, tax_amount, total,
+                    due_date, status, notes
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    inv_no, project_id, client["client_company"], client["client_contact"],
+                    client["client_email"], client["client_phone"], client["client_address"],
+                    request.form.get("title", project["name"]).strip(),
+                    totals["subtotal"], totals["tax_rate"], totals["tax_amount"], totals["total"],
+                    request.form.get("due_date") or None,
+                    "unpaid",
+                    request.form.get("notes", "").strip(),
+                ),
+            )
+            iid = conn.execute("SELECT last_insert_rowid() AS id").fetchone()["id"]
+            for item in items:
+                conn.execute(
+                    "INSERT INTO invoice_items (invoice_id, description, quantity, unit_price) VALUES (?, ?, ?, ?)",
+                    (iid, item["description"], item["quantity"], item["unit_price"]),
+                )
+            log_audit(conn, g.user, "Created invoice", "invoice", iid, inv_no)
+            flash(f"Invoice {inv_no} created.", "success")
+            return redirect(url_for("invoice_pdf", invoice_id=iid))
+    return render_template("document_form.html", project=project, doc_type="invoice", title="New Invoice")
+
+
+@app.route("/invoices/<int:invoice_id>/pdf")
+@permission_required("documents_view")
+def invoice_pdf(invoice_id):
+    with get_db() as conn:
+        invoice = conn.execute("SELECT * FROM invoices WHERE id=?", (invoice_id,)).fetchone()
+        if not invoice:
+            flash("Invoice not found.", "error")
+            return redirect(url_for("dashboard"))
+        invoice = dict(invoice)
+        items = conn.execute(
+            "SELECT * FROM invoice_items WHERE invoice_id=?", (invoice_id,)
+        ).fetchall()
+        company = dict(conn.execute("SELECT * FROM company_settings WHERE id=1").fetchone())
+    buffer = build_invoice_pdf(company, invoice, [dict(i) for i in items], g.user["name"])
+    return send_file(buffer, as_attachment=True, download_name=f"{invoice['invoice_number']}.pdf", mimetype="application/pdf")
 
 
 def _project_form_data() -> dict:

@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Leads{% endblock %}
+{% block content %}
+<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+  <div>
+    <h1 class="text-2xl font-bold text-slate-900 dark:text-white">Lead Pipeline</h1>
+    <p class="text-slate-500 text-sm mt-1">Track prospects before they become clients & projects</p>
+  </div>
+</div>
+
+<div class="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-6 text-center text-[10px] uppercase font-medium">
+  <div class="bg-white dark:bg-slate-800 rounded-xl border dark:border-slate-700 p-3"><div class="text-slate-400">New</div><div class="text-lg font-bold">{{ leads | selectattr('status','equalto','new') | list | length }}</div></div>
+  <div class="bg-white dark:bg-slate-800 rounded-xl border dark:border-slate-700 p-3"><div class="text-slate-400">Contacted</div><div class="text-lg font-bold text-blue-600">{{ leads | selectattr('status','equalto','contacted') | list | length }}</div></div>
+  <div class="bg-white dark:bg-slate-800 rounded-xl border dark:border-slate-700 p-3"><div class="text-slate-400">Proposal</div><div class="text-lg font-bold text-amber-600">{{ leads | selectattr('status','equalto','proposal') | list | length }}</div></div>
+  <div class="bg-white dark:bg-slate-800 rounded-xl border dark:border-slate-700 p-3"><div class="text-slate-400">Won</div><div class="text-lg font-bold text-emerald-600">{{ leads | selectattr('status','equalto','won') | list | length }}</div></div>
+  <div class="bg-white dark:bg-slate-800 rounded-xl border dark:border-slate-700 p-3"><div class="text-slate-400">Lost</div><div class="text-lg font-bold text-red-500">{{ leads | selectattr('status','equalto','lost') | list | length }}</div></div>
+</div>
+
+<form method="POST" action="{{ url_for('add_lead') }}" class="bg-white dark:bg-slate-800 rounded-xl border dark:border-slate-700 p-5 mb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+  <input name="company_name" placeholder="Company name *" required class="px-3 py-2 border rounded-lg text-sm dark:bg-slate-900 dark:border-slate-600">
+  <input name="contact_name" placeholder="Contact person" class="px-3 py-2 border rounded-lg text-sm dark:bg-slate-900 dark:border-slate-600">
+  <input name="email" type="email" placeholder="Email" class="px-3 py-2 border rounded-lg text-sm dark:bg-slate-900 dark:border-slate-600">
+  <input name="phone" placeholder="Phone" class="px-3 py-2 border rounded-lg text-sm dark:bg-slate-900 dark:border-slate-600">
+  <input name="service_interest" placeholder="Service (Web, Branding...)" class="px-3 py-2 border rounded-lg text-sm dark:bg-slate-900 dark:border-slate-600">
+  <input name="estimated_value" type="number" step="0.01" placeholder="Est. value (ZMW)" class="px-3 py-2 border rounded-lg text-sm dark:bg-slate-900 dark:border-slate-600">
+  <select name="status" class="px-3 py-2 border rounded-lg text-sm dark:bg-slate-900 dark:border-slate-600">
+    <option value="new">New</option>
+    <option value="contacted">Contacted</option>
+    <option value="proposal">Proposal sent</option>
+  </select>
+  <button type="submit" class="bg-hive-600 text-white rounded-lg text-sm font-semibold">+ Add Lead</button>
+  <input name="notes" placeholder="Notes" class="px-3 py-2 border rounded-lg text-sm sm:col-span-2 lg:col-span-4 dark:bg-slate-900 dark:border-slate-600">
+</form>
+
+<div class="bg-white dark:bg-slate-800 rounded-xl border dark:border-slate-700 overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-slate-50 dark:bg-slate-900 text-[10px] uppercase text-slate-500">
+      <tr>
+        <th class="text-left px-5 py-2">Company</th>
+        <th class="text-left px-3 py-2">Contact</th>
+        <th class="text-right px-3 py-2">Est. Value</th>
+        <th class="text-center px-3 py-2">Status</th>
+        <th class="text-right px-5 py-2">Actions</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y dark:divide-slate-700">
+      {% for l in leads %}
+      <tr>
+        <td class="px-5 py-3">
+          <div class="font-semibold">{{ l.company_name }}</div>
+          <div class="text-[10px] text-slate-400">{{ l.service_interest or '—' }}</div>
+        </td>
+        <td class="px-3 py-3 text-xs">
+          {{ l.contact_name or '—' }}<br>
+          <span class="text-slate-400">{{ l.email or l.phone or '' }}</span>
+        </td>
+        <td class="px-3 py-3 text-right font-bold text-hive-700">{{ l.estimated_value | money }}</td>
+        <td class="px-3 py-3 text-center">
+          <form method="POST" action="{{ url_for('update_lead_status', lead_id=l.id) }}" class="inline">
+            <select name="status" onchange="this.form.submit()" class="text-xs border rounded px-2 py-1 dark:bg-slate-900">
+              {% for st in ['new','contacted','proposal','won','lost'] %}
+              <option value="{{ st }}" {% if l.status == st %}selected{% endif %}>{{ st.title() }}</option>
+              {% endfor %}
+            </select>
+          </form>
+        </td>
+        <td class="px-5 py-3 text-right">
+          {% if l.status not in ['won','lost'] and can_access('projects_create') %}
+          <form method="POST" action="{{ url_for('convert_lead', lead_id=l.id) }}" class="inline">
+            <button type="submit" class="text-xs bg-emerald-600 text-white px-3 py-1 rounded-lg">→ Project</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="px-5 py-10 text-center text-slate-400">No leads yet. Add your first prospect above.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

@@ -1,5 +1,7 @@
 from werkzeug.security import generate_password_hash
 
+from company_defaults import DEFAULT_ADDRESS, DEFAULT_EMAIL, DEFAULT_PHONE, DEFAULT_TAGLINE
+
 from database import get_db, init_db, migrate_db
 
 
@@ -122,10 +124,10 @@ def seed():
                 """,
                 (
                     "GrowthHive Media",
-                    "Technology & Marketing Solutions",
-                    "info@growthhivemedia.com",
-                    "+260 971 000 000",
-                    "Plot 42, Cairo Road, Lusaka, Zambia",
+                    DEFAULT_TAGLINE,
+                    DEFAULT_EMAIL,
+                    DEFAULT_PHONE,
+                    DEFAULT_ADDRESS,
                     2450000.0,
                     250000.0,
                     600000.0,
