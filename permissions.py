@@ -13,11 +13,12 @@ ROLE_PERMISSIONS: dict[str, set[str]] = {
         "projects_edit", "reports", "finances_view", "accounting_view",
         "expenses_view", "reserves_view", "project_payments_request",
         "project_expenses_request", "leads_view", "documents_view",
+        "tax_view", "time_tracking",
     },
     "project_manager": {
         "dashboard", "clients_view", "projects_view", "maintenance_view",
         "reports", "project_expenses_request", "subcontractors_request",
-        "operations_view", "documents_view",
+        "operations_view", "documents_view", "time_tracking",
     },
 }
 
@@ -32,6 +33,7 @@ NAV_BY_ROLE: dict[str, list[tuple[str, str]]] = {
         ("reserves", "Reserves"),
         ("investments", "Investments"),
         ("company_expenses", "Expenses"),
+        ("tax", "Tax & ZRA"),
         ("approvals", "Approvals"),
         ("team", "Team"),
         ("auditing", "Auditing"),
@@ -74,6 +76,7 @@ NAV_GROUPS_BY_ROLE: dict[str, list[tuple[str, list[tuple[str, str]]]]] = {
         ("Finance", [
             ("accounting", "Accounting"), ("reserves", "Reserves"),
             ("investments", "Investments"), ("company_expenses", "Expenses"),
+            ("tax", "Tax & ZRA"),
         ]),
         ("Management", [
             ("approvals", "Approvals"), ("team", "Team"),

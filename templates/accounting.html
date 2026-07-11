@@ -99,6 +99,14 @@
   </div>
 </div>
 
+{% if cash_flow %}
+<div class="bg-white rounded-xl border p-5 mb-6">
+  <h2 class="font-semibold text-sm mb-2">Cash Flow Forecast — next 3 months</h2>
+  <p class="text-[10px] text-slate-400 mb-4">Starting bank {{ cash_flow.starting_balance | money }} · Still to collect {{ cash_flow.still_to_collect | money }} · Tax due 90d {{ cash_flow.tax_due_90d | money }}</p>
+  <canvas id="cashFlowChart" height="120"></canvas>
+</div>
+{% endif %}
+
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
   <div class="bg-white rounded-xl border p-5">
     <h2 class="font-semibold text-sm mb-4">Monthly Profit vs Target</h2>
@@ -197,5 +205,19 @@ new Chart(document.getElementById('revenueChart'), {
   },
   options: { responsive: true, scales: { y: { beginAtZero: true } } }
 });
+{% if cash_flow %}
+new Chart(document.getElementById('cashFlowChart'), {
+  type: 'line',
+  data: {
+    labels: {{ cf_labels | safe }},
+    datasets: [
+      { label: 'Inflows', data: {{ cf_inflows | safe }}, borderColor: '#10b981', tension: 0.3 },
+      { label: 'Outflows', data: {{ cf_outflows | safe }}, borderColor: '#ef4444', tension: 0.3 },
+      { label: 'Balance', data: {{ cf_balances | safe }}, borderColor: '#0d9488', tension: 0.3, borderWidth: 2 }
+    ]
+  },
+  options: { responsive: true, scales: { y: { beginAtZero: false } } }
+});
+{% endif %}
 </script>
 {% endblock %}

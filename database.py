@@ -278,6 +278,7 @@ def migrate_db(conn=None):
 
         _migrate_business_modules(conn)
         _migrate_company_contact(conn)
+        _migrate_operations_modules(conn)
 
         if own_conn:
             conn.commit()
@@ -410,6 +411,59 @@ def _migrate_business_modules(conn):
             sort_order INTEGER NOT NULL DEFAULT 0,
             created_at TEXT NOT NULL DEFAULT (datetime('now')),
             FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+        );
+        """
+    )
+
+
+def _migrate_operations_modules(conn):
+    conn.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS project_files (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_id INTEGER NOT NULL,
+            original_name TEXT NOT NULL,
+            stored_name TEXT NOT NULL,
+            file_size INTEGER NOT NULL DEFAULT 0,
+            uploaded_by TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS time_entries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_id INTEGER NOT NULL,
+            user_id INTEGER,
+            user_name TEXT,
+            hours REAL NOT NULL,
+            entry_date TEXT NOT NULL,
+            description TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS tax_obligations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            tax_type TEXT NOT NULL DEFAULT 'ZRA',
+            amount REAL NOT NULL DEFAULT 0,
+            period_label TEXT,
+            due_date TEXT,
+            paid_date TEXT,
+            status TEXT NOT NULL DEFAULT 'pending'
+                CHECK(status IN ('pending', 'paid', 'overdue')),
+            notes TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS email_notifications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            notification_type TEXT NOT NULL,
+            recipient TEXT NOT NULL,
+            subject TEXT NOT NULL,
+            body_preview TEXT,
+            status TEXT NOT NULL DEFAULT 'sent',
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
         );
         """
     )

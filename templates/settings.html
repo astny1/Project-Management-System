@@ -112,6 +112,20 @@
     <p class="text-xs text-slate-400">Stanbic Bank balance is updated under Reserves.</p>
     <button type="submit" class="bg-hive-600 hover:bg-hive-700 text-white font-semibold px-6 py-2.5 rounded-lg">Save Company Settings</button>
   </form>
+
+  <div class="bg-white dark:bg-slate-800 rounded-xl border dark:border-slate-700 shadow-sm p-6 space-y-3">
+    <h2 class="font-semibold text-slate-900 dark:text-white">Email & Weekly Digest</h2>
+    <p class="text-xs text-slate-500">Notifications go to <strong>{{ notify_email }}</strong>
+      {% if smtp_configured %}<span class="text-emerald-600">(SMTP connected)</span>{% else %}<span class="text-amber-600">(configure SMTP on Render — see RENDER.md)</span>{% endif %}
+    </p>
+    <ul class="text-xs text-slate-500 list-disc pl-4 space-y-1">
+      <li>New leads, file uploads, tax due — instant alerts</li>
+      <li>Weekly digest every Monday 8:00 AM (if ENABLE_WEEKLY_DIGEST=1)</li>
+    </ul>
+    <form method="POST" action="{{ url_for('admin_send_weekly_digest') }}">
+      <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-5 py-2 rounded-lg text-sm">Send Weekly Digest Now</button>
+    </form>
+  </div>
   {% endif %}
 </div>
 

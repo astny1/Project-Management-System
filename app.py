@@ -14,14 +14,17 @@ from flask import (
     render_template,
     request,
     send_file,
+    send_from_directory,
     session,
     url_for,
 )
 from werkzeug.security import check_password_hash, generate_password_hash
+from werkzeug.utils import secure_filename
 
 from database import get_db, init_db, migrate_db
 from approvals import create_approval, review_approval
 from helpers import (
+    cash_flow_forecast,
     collection_status,
     company_financial_position,
     company_total_profit,
@@ -30,6 +33,7 @@ from helpers import (
     document_totals,
     fetch_clients,
     fetch_investments,
+    fetch_projects,
     kwacha,
     log_audit,
     month_report_detail,
@@ -41,12 +45,17 @@ from helpers import (
     total_investment_profits,
     total_reserves,
 )
+from email_service import NOTIFY_EMAIL, notify_simple, smtp_configured
+from weekly_digest import send_weekly_digest
 from pdf_reports import build_financial_report_pdf, build_invoice_pdf, build_project_report_pdf, build_quotation_pdf
 from permissions import can, nav_groups, nav_items, requires_approval, role_label
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "growthhive-dev-secret-change-in-production")
 app.jinja_env.filters["money"] = kwacha
+app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
+UPLOAD_ROOT = os.path.join(os.path.dirname(__file__), "uploads")
+os.makedirs(UPLOAD_ROOT, exist_ok=True)
 
 try:
     migrate_db()
@@ -107,6 +116,8 @@ def inject_permissions():
         "role_label": role_label,
         "pending_approvals": pending,
         "needs_approval": requires_approval(role),
+        "notify_email": NOTIFY_EMAIL,
+        "smtp_configured": smtp_configured(),
     }
 
 
@@ -144,31 +155,6 @@ def project_totals(conn, project_id: int) -> dict:
         "profit_estimate": profit,
         "collection_status": collection_status(contract, received),
     }
-
-
-def fetch_projects(conn):
-    rows = conn.execute(
-        """
-        SELECT p.*,
-            COALESCE((SELECT SUM(amount) FROM expenses e WHERE e.project_id = p.id), 0) AS total_expenses,
-            COALESCE((SELECT SUM(amount) FROM payments_received pr WHERE pr.project_id = p.id), 0) AS total_received,
-            COALESCE((SELECT SUM(amount_paid) FROM subcontractors s WHERE s.project_id = p.id), 0) AS total_sub_paid,
-            (SELECT COUNT(*) FROM subcontractors s WHERE s.project_id = p.id) AS subcontractor_count
-        FROM projects p
-        ORDER BY CASE p.status WHEN 'ongoing' THEN 0 WHEN 'pending' THEN 1 ELSE 2 END, p.updated_at DESC
-        """
-    ).fetchall()
-    projects = []
-    for row in rows:
-        item = dict(row)
-        item["remaining_balance"] = max(item["contract_amount"] - item["total_received"], 0)
-        item["collection_status"] = collection_status(item["contract_amount"], item["total_received"])
-        item["project_profit"] = project_profit_amount(
-            item["total_received"], item["total_expenses"], item["total_sub_paid"]
-        )
-        item["days_left"] = days_remaining(item.get("end_date"))
-        projects.append(item)
-    return projects
 
 
 def dashboard_stats(conn, projects):
@@ -251,6 +237,7 @@ def dashboard():
         recent_invoices = conn.execute(
             "SELECT i.*, p.name AS project_name FROM invoices i LEFT JOIN projects p ON p.id=i.project_id ORDER BY i.created_at DESC LIMIT 5"
         ).fetchall()
+        cash_flow = cash_flow_forecast(conn, projects)
     return render_template(
         "dashboard.html",
         projects=projects,
@@ -264,6 +251,9 @@ def dashboard():
         invoice_count=invoice_count,
         recent_quotes=recent_quotes,
         recent_invoices=recent_invoices,
+        cash_flow=cash_flow,
+        cash_flow_labels=json.dumps(cash_flow["labels"]),
+        cash_flow_balances=json.dumps(cash_flow["balances"]),
     )
 
 
@@ -507,6 +497,8 @@ def accounting():
         ytd_investment = sum(m["investment_profit"] for m in months)
         ytd_project_profit = sum(m["project_profit"] for m in months)
         ytd_project_income = sum(m["project_income"] for m in months)
+        projects = fetch_projects(conn)
+        cash_flow = cash_flow_forecast(conn, projects)
     chart_labels = [month_name[m["month"]][:3] for m in months]
     return render_template(
         "accounting.html",
@@ -520,12 +512,17 @@ def accounting():
         ytd_investment=ytd_investment,
         ytd_project_profit=ytd_project_profit,
         ytd_project_income=ytd_project_income,
+        cash_flow=cash_flow,
         chart_labels=json.dumps(chart_labels),
         chart_profit=json.dumps([m["profit"] for m in months]),
         chart_target=json.dumps([m["profit_target"] for m in months]),
         chart_revenue=json.dumps([m["revenue"] for m in months]),
         chart_expenses=json.dumps([m["expenses"] for m in months]),
         chart_investment=json.dumps([m["investment_profit"] for m in months]),
+        cf_labels=json.dumps(cash_flow["labels"]),
+        cf_inflows=json.dumps(cash_flow["inflows"]),
+        cf_outflows=json.dumps(cash_flow["outflows"]),
+        cf_balances=json.dumps(cash_flow["balances"]),
     )
 
 
@@ -782,12 +779,20 @@ def project_detail(project_id):
         invoices = conn.execute(
             "SELECT * FROM invoices WHERE project_id=? ORDER BY created_at DESC", (project_id,)
         ).fetchall()
+        files = conn.execute(
+            "SELECT * FROM project_files WHERE project_id=? ORDER BY created_at DESC", (project_id,)
+        ).fetchall()
+        time_entries = conn.execute(
+            "SELECT * FROM time_entries WHERE project_id=? ORDER BY entry_date DESC", (project_id,)
+        ).fetchall()
+        total_hours = sum(t["hours"] for t in time_entries)
     return render_template(
         "project_detail.html",
         project=project, expenses=expenses, payments=payments,
         subcontractors=subcontractors, totals=totals, company=company,
         position=position, audits=audits, milestones=milestones,
-        quotations=quotations, invoices=invoices,
+        quotations=quotations, invoices=invoices, files=files,
+        time_entries=time_entries, total_hours=total_hours,
     )
 
 
@@ -1123,6 +1128,18 @@ def add_lead():
             ),
         )
         log_audit(conn, g.user, "Added lead", "lead", None, request.form.get("company_name", ""))
+        company_name = request.form.get("company_name", "")
+        notify_simple(
+            conn,
+            f"New lead: {company_name}",
+            [
+                f"<b>New lead added</b> by {g.user['name']}",
+                f"Company: {company_name}",
+                f"Contact: {request.form.get('contact_name', '—')}",
+                f"Est. value: {kwacha(float(request.form.get('estimated_value') or 0))}",
+            ],
+            "new_lead",
+        )
     flash("Lead added.", "success")
     return redirect(url_for("leads"))
 
@@ -1340,6 +1357,161 @@ def invoice_pdf(invoice_id):
         company = dict(conn.execute("SELECT * FROM company_settings WHERE id=1").fetchone())
     buffer = build_invoice_pdf(company, invoice, [dict(i) for i in items], g.user["name"])
     return send_file(buffer, as_attachment=True, download_name=f"{invoice['invoice_number']}.pdf", mimetype="application/pdf")
+
+
+@app.route("/tax")
+@permission_required("tax_view")
+def tax():
+    with get_db() as conn:
+        items = conn.execute("SELECT * FROM tax_obligations ORDER BY due_date ASC, created_at DESC").fetchall()
+        total_pending = sum(i["amount"] for i in items if i["status"] == "pending")
+        total_paid = sum(i["amount"] for i in items if i["status"] == "paid")
+        emails = conn.execute(
+            "SELECT * FROM email_notifications ORDER BY created_at DESC LIMIT 20"
+        ).fetchall()
+    return render_template("tax.html", items=items, total_pending=total_pending, total_paid=total_paid, emails=emails)
+
+
+@app.route("/tax/add", methods=["POST"])
+@permission_required("tax_view")
+def add_tax():
+    with get_db() as conn:
+        conn.execute(
+            """
+            INSERT INTO tax_obligations (title, tax_type, amount, period_label, due_date, status, notes)
+            VALUES (?, ?, ?, ?, ?, 'pending', ?)
+            """,
+            (
+                request.form.get("title", "").strip(),
+                request.form.get("tax_type", "ZRA").strip(),
+                float(request.form.get("amount") or 0),
+                request.form.get("period_label", "").strip(),
+                request.form.get("due_date") or None,
+                request.form.get("notes", "").strip(),
+            ),
+        )
+        title = request.form.get("title", "Tax obligation")
+        notify_simple(
+            conn,
+            f"Tax obligation added: {title}",
+            [
+                f"<b>{title}</b> recorded",
+                f"Amount: {kwacha(float(request.form.get('amount') or 0))}",
+                f"Due: {request.form.get('due_date') or '—'}",
+            ],
+            "tax",
+        )
+    flash("Tax obligation added.", "success")
+    return redirect(url_for("tax"))
+
+
+@app.route("/tax/<int:tax_id>/paid", methods=["POST"])
+@permission_required("tax_view")
+def mark_tax_paid(tax_id):
+    with get_db() as conn:
+        conn.execute(
+            "UPDATE tax_obligations SET status='paid', paid_date=date('now') WHERE id=?",
+            (tax_id,),
+        )
+    flash("Marked as paid.", "success")
+    return redirect(url_for("tax"))
+
+
+@app.route("/projects/<int:project_id>/files", methods=["POST"])
+@permission_required("projects_view")
+def upload_project_file(project_id):
+    file = request.files.get("file")
+    if not file or not file.filename:
+        flash("Choose a file to upload.", "error")
+        return redirect(url_for("project_detail", project_id=project_id))
+    original = secure_filename(file.filename)
+    if not original:
+        flash("Invalid file name.", "error")
+        return redirect(url_for("project_detail", project_id=project_id))
+    ext = os.path.splitext(original)[1]
+    stored = f"p{project_id}_{datetime.now().strftime('%Y%m%d%H%M%S')}_{original}"
+    folder = os.path.join(UPLOAD_ROOT, str(project_id))
+    os.makedirs(folder, exist_ok=True)
+    path = os.path.join(folder, stored)
+    file.save(path)
+    size = os.path.getsize(path)
+    with get_db() as conn:
+        conn.execute(
+            """
+            INSERT INTO project_files (project_id, original_name, stored_name, file_size, uploaded_by)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (project_id, original, stored, size, g.user["name"]),
+        )
+        log_audit(conn, g.user, "Uploaded file", "project", project_id, original)
+        notify_simple(
+            conn,
+            f"File uploaded: {original}",
+            [f"<b>{original}</b> uploaded to project #{project_id} by {g.user['name']}"],
+            "file_upload",
+        )
+    flash("File uploaded.", "success")
+    return redirect(url_for("project_detail", project_id=project_id))
+
+
+@app.route("/projects/<int:project_id>/files/<int:file_id>")
+@permission_required("projects_view")
+def download_project_file(project_id, file_id):
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT * FROM project_files WHERE id=? AND project_id=?",
+            (file_id, project_id),
+        ).fetchone()
+    if not row:
+        flash("File not found.", "error")
+        return redirect(url_for("project_detail", project_id=project_id))
+    folder = os.path.join(UPLOAD_ROOT, str(project_id))
+    return send_from_directory(folder, row["stored_name"], as_attachment=True, download_name=row["original_name"])
+
+
+@app.route("/projects/<int:project_id>/time", methods=["POST"])
+@permission_required("time_tracking")
+def add_time_entry(project_id):
+    with get_db() as conn:
+        conn.execute(
+            """
+            INSERT INTO time_entries (project_id, user_id, user_name, hours, entry_date, description)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                project_id,
+                g.user["id"],
+                g.user["name"],
+                float(request.form.get("hours") or 0),
+                request.form.get("entry_date") or datetime.now().strftime("%Y-%m-%d"),
+                request.form.get("description", "").strip(),
+            ),
+        )
+        log_audit(conn, g.user, "Logged time", "project", project_id)
+    flash("Time logged.", "success")
+    return redirect(url_for("project_detail", project_id=project_id))
+
+
+@app.route("/admin/send-weekly-digest", methods=["POST"])
+@admin_required
+def admin_send_weekly_digest():
+    with get_db() as conn:
+        ok = send_weekly_digest(conn)
+    flash(
+        f"Weekly digest sent to {NOTIFY_EMAIL}." if ok else f"Digest saved (configure SMTP to email {NOTIFY_EMAIL}).",
+        "success" if ok else "warning",
+    )
+    return redirect(url_for("settings"))
+
+
+@app.route("/cron/weekly-digest")
+def cron_weekly_digest():
+    secret = os.environ.get("CRON_SECRET", "")
+    if not secret or request.args.get("key") != secret:
+        return "Unauthorized", 401
+    with get_db() as conn:
+        ok = send_weekly_digest(conn)
+    return ("OK" if ok else "SMTP not configured — logged only", 200)
 
 
 def _project_form_data() -> dict:

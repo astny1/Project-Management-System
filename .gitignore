@@ -17,3 +17,6 @@ Thumbs.db
 
 # Logs
 *.log
+
+# User uploads (project files)
+uploads/

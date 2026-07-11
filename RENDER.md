@@ -65,6 +65,20 @@ Replace `YOUR_USERNAME/growthhive-media` with your repo URL.
 | `PYTHON_VERSION` | `3.12.5` |
 | `DATABASE_PATH` | `/tmp/growthhive.db` |
 
+**Email notifications & weekly digest** (optional but recommended):
+
+| Key | Value |
+|-----|--------|
+| `NOTIFY_EMAIL` | `info@growhivemedea.com` |
+| `SMTP_HOST` | e.g. `smtp.gmail.com` |
+| `SMTP_PORT` | `587` |
+| `SMTP_USER` | Your SMTP login email |
+| `SMTP_PASSWORD` | App password (Gmail) or SMTP key |
+| `CRON_SECRET` | Random secret string |
+| `ENABLE_WEEKLY_DIGEST` | `1` to auto-send every Monday 8:00 AM |
+
+Without SMTP, alerts are logged in Render logs and on **Tax & ZRA** → notification history.
+
 7. Click **Create Web Service**
 
 First deploy takes **3–8 minutes**.
@@ -134,6 +148,34 @@ After deploy, new installs use an **empty** database (no demo projects). To **wi
 Optional: add `INCLUDE_TEAM` = `1` to also create sales & PM login accounts.
 
 Login after reset: `astone.mwamba@growhivemedea.com` / `admin123` — change password in Settings.
+
+---
+
+## Email setup (Gmail example)
+
+1. Enable 2FA on your Google account
+2. Create an **App Password** (Google Account → Security → App passwords)
+3. In Render Environment:
+
+```
+NOTIFY_EMAIL=info@growhivemedea.com
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your@gmail.com
+SMTP_PASSWORD=your-16-char-app-password
+CRON_SECRET=pick-a-long-random-string
+ENABLE_WEEKLY_DIGEST=1
+```
+
+4. **Settings** → **Send Weekly Digest Now** to test
+5. Optional: Render **Cron Job** weekly hitting  
+   `https://YOUR-APP.onrender.com/cron/weekly-digest?key=YOUR_CRON_SECRET`
+
+**What sends email to info@growhivemedea.com:**
+- New leads
+- Project file uploads
+- New tax / ZRA obligations
+- Weekly digest (bank balance, collections, MRR, cash flow forecast, hours logged)
 
 ---
 

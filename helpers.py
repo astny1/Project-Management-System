@@ -85,6 +85,31 @@ def project_profit_amount(received: float, expenses: float, sub_paid: float = 0)
     return received - expenses - sub_paid
 
 
+def fetch_projects(conn) -> list[dict]:
+    rows = conn.execute(
+        """
+        SELECT p.*,
+            COALESCE((SELECT SUM(amount) FROM expenses e WHERE e.project_id = p.id), 0) AS total_expenses,
+            COALESCE((SELECT SUM(amount) FROM payments_received pr WHERE pr.project_id = p.id), 0) AS total_received,
+            COALESCE((SELECT SUM(amount_paid) FROM subcontractors s WHERE s.project_id = p.id), 0) AS total_sub_paid,
+            (SELECT COUNT(*) FROM subcontractors s WHERE s.project_id = p.id) AS subcontractor_count
+        FROM projects p
+        ORDER BY CASE p.status WHEN 'ongoing' THEN 0 WHEN 'pending' THEN 1 ELSE 2 END, p.updated_at DESC
+        """
+    ).fetchall()
+    projects = []
+    for row in rows:
+        item = dict(row)
+        item["remaining_balance"] = max(item["contract_amount"] - item["total_received"], 0)
+        item["collection_status"] = collection_status(item["contract_amount"], item["total_received"])
+        item["project_profit"] = project_profit_amount(
+            item["total_received"], item["total_expenses"], item["total_sub_paid"]
+        )
+        item["days_left"] = days_remaining(item.get("end_date"))
+        projects.append(item)
+    return projects
+
+
 def company_total_profit(conn, projects: list[dict]) -> dict:
     """Company-wide financial summary (ZMW)."""
     total_contract_value = sum(p["contract_amount"] for p in projects)
@@ -444,4 +469,79 @@ def dashboard_alerts(conn, projects: list[dict]) -> list[dict]:
             "url": "/leads",
         })
 
-    return alerts[:12]
+    try:
+        tax_rows = conn.execute(
+            """
+            SELECT title, amount, due_date FROM tax_obligations
+            WHERE status = 'pending' AND due_date <= date('now', '+14 days')
+            ORDER BY due_date LIMIT 5
+            """
+        ).fetchall()
+        for t in tax_rows:
+            alerts.append({
+                "type": "tax",
+                "severity": "urgent" if t["due_date"] and t["due_date"] <= today else "warning",
+                "message": f"ZRA/Tax due: {t['title']} — {kwacha(t['amount'])} by {t['due_date'] or '—'}",
+                "url": "/tax",
+            })
+    except Exception:
+        pass
+
+    return alerts[:15]
+
+
+def cash_flow_forecast(conn, projects: list[dict]) -> dict:
+    """Simple 3-month cash flow projection (ZMW)."""
+    position = company_financial_position(conn)
+    balance = position["bank_balance"]
+    still_collect = sum(max(p.get("remaining_balance", 0), 0) for p in projects)
+    mrr = sum(
+        p.get("maintenance_amount", 0)
+        for p in projects
+        if p.get("has_monthly_maintenance") and p["status"] == "ongoing"
+    )
+
+    avg_expense = conn.execute(
+        """
+        SELECT COALESCE(AVG(m), 0) AS avg FROM (
+            SELECT SUM(amount) AS m FROM expenses
+            WHERE expense_date >= date('now', '-90 days')
+            GROUP BY strftime('%Y-%m', expense_date)
+        )
+        """
+    ).fetchone()["avg"]
+
+    tax_next = conn.execute(
+        """
+        SELECT COALESCE(SUM(amount), 0) AS t FROM tax_obligations
+        WHERE status = 'pending' AND due_date <= date('now', '+90 days')
+        """
+    ).fetchone()["t"]
+
+    collect_per_month = still_collect / 3 if still_collect else 0
+    points = []
+    running = balance
+    labels = ["Month 1", "Month 2", "Month 3"]
+    for i, label in enumerate(labels):
+        inflows = mrr + collect_per_month
+        outflows = avg_expense + (tax_next if i == 0 else 0)
+        running = running + inflows - outflows
+        points.append({
+            "label": label,
+            "inflows": inflows,
+            "outflows": outflows,
+            "balance": running,
+        })
+
+    return {
+        "starting_balance": balance,
+        "still_to_collect": still_collect,
+        "mrr": mrr,
+        "avg_monthly_expense": avg_expense,
+        "tax_due_90d": tax_next,
+        "points": points,
+        "labels": [p["label"] for p in points],
+        "balances": [p["balance"] for p in points],
+        "inflows": [p["inflows"] for p in points],
+        "outflows": [p["outflows"] for p in points],
+    }
