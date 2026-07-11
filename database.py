@@ -293,7 +293,7 @@ def _migrate_single_stanbic_bank(conn):
     total = conn.execute("SELECT COALESCE(SUM(balance), 0) AS t FROM bank_accounts").fetchone()["t"]
     if total == 0:
         company = conn.execute("SELECT bank_balance FROM company_settings WHERE id = 1").fetchone()
-        total = company["bank_balance"] if company else 780000.0
+        total = float(company["bank_balance"]) if company else 0.0
     conn.execute("DELETE FROM bank_accounts")
     conn.execute(
         """

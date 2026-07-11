@@ -71,20 +71,38 @@ def fetch_investments(conn) -> list[dict]:
 
 
 def company_total_profit(conn, projects: list[dict]) -> dict:
-    project_revenue = sum(p["total_received"] for p in projects)
+    """Company-wide financial summary (ZMW)."""
+    total_contract_value = sum(p["contract_amount"] for p in projects)
+    cash_from_projects = sum(p["total_received"] for p in projects)
     project_expenses = sum(p["total_expenses"] for p in projects)
     investment_profit = total_investment_profits(conn)
     general_expenses = conn.execute(
         "SELECT COALESCE(SUM(amount), 0) AS t FROM expenses WHERE project_id IS NULL"
     ).fetchone()["t"]
-    total_revenue = project_revenue + investment_profit
-    total_expenses = project_expenses + general_expenses
+    subcontractor_paid = conn.execute(
+        "SELECT COALESCE(SUM(amount_paid), 0) AS t FROM subcontractors"
+    ).fetchone()["t"]
+
+    total_income = cash_from_projects + investment_profit
+    total_expenses = project_expenses + general_expenses + subcontractor_paid
+    remaining_to_collect = total_contract_value - cash_from_projects
+    net_profit = total_income - total_expenses
+
     return {
-        "project_revenue": project_revenue,
+        "total_contract_value": total_contract_value,
+        "cash_from_projects": cash_from_projects,
         "investment_profit": investment_profit,
-        "total_revenue": total_revenue,
+        "total_income": total_income,
         "total_expenses": total_expenses,
-        "total_profit": total_revenue - total_expenses,
+        "project_expenses": project_expenses,
+        "company_expenses": general_expenses,
+        "subcontractor_paid": subcontractor_paid,
+        "remaining_to_collect": remaining_to_collect,
+        "net_profit": net_profit,
+        # Legacy keys used elsewhere
+        "project_revenue": cash_from_projects,
+        "total_revenue": total_income,
+        "total_profit": net_profit,
     }
 
 

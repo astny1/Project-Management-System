@@ -30,12 +30,35 @@
 </div>
 
 {% if can_access('finances_view') %}
-<div class="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
-  <div class="bg-white rounded-xl border p-4"><div class="text-[10px] text-slate-500 uppercase">Contract</div><div class="text-lg font-bold">{{ project.contract_amount | money }}</div></div>
-  <div class="bg-white rounded-xl border p-4"><div class="text-[10px] text-slate-500 uppercase">Received</div><div class="text-lg font-bold text-emerald-600">{{ totals.received | money }}</div></div>
-  <div class="bg-white rounded-xl border p-4"><div class="text-[10px] text-slate-500 uppercase">Expenses</div><div class="text-lg font-bold text-red-500">{{ totals.expenses | money }}</div></div>
-  <div class="bg-white rounded-xl border p-4"><div class="text-[10px] text-slate-500 uppercase">Remaining</div><div class="text-lg font-bold text-amber-600">{{ totals.remaining | money }}</div></div>
-  <div class="bg-white rounded-xl border p-4"><div class="text-[10px] text-slate-500 uppercase">Est. Profit</div><div class="text-lg font-bold text-hive-700">{{ totals.profit_estimate | money }}</div></div>
+<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+  <div class="bg-white rounded-xl border p-4">
+    <div class="text-[10px] text-slate-500 uppercase">Contract Value</div>
+    <div class="text-lg font-bold mt-1">{{ project.contract_amount | money }}</div>
+  </div>
+  <div class="bg-white rounded-xl border p-4">
+    <div class="text-[10px] text-slate-500 uppercase">Income Received</div>
+    <div class="text-lg font-bold text-emerald-600 mt-1">{{ totals.received | money }}</div>
+    <div class="text-[9px] text-slate-400">Before expenses</div>
+  </div>
+  <div class="bg-white rounded-xl border p-4">
+    <div class="text-[10px] text-slate-500 uppercase">Expenses</div>
+    <div class="text-lg font-bold text-red-500 mt-1">{{ totals.expenses | money }}</div>
+  </div>
+  <div class="bg-white rounded-xl border p-4">
+    <div class="text-[10px] text-slate-500 uppercase">Still to Collect</div>
+    <div class="text-lg font-bold text-amber-600 mt-1">{{ totals.remaining | money }}</div>
+    <div class="text-[9px] text-slate-400">Client balance due</div>
+  </div>
+  <div class="bg-white rounded-xl border p-4">
+    <div class="text-[10px] text-slate-500 uppercase">Project Profit</div>
+    <div class="text-lg font-bold text-hive-700 mt-1">{{ totals.profit_estimate | money }}</div>
+    <div class="text-[9px] text-slate-400">Received − costs</div>
+  </div>
+  <div class="bg-emerald-50 rounded-xl border border-emerald-100 p-4">
+    <div class="text-[10px] text-emerald-700 uppercase">After Expenses</div>
+    <div class="text-lg font-bold text-emerald-700 mt-1">{{ (totals.received - totals.expenses) | money }}</div>
+    <div class="text-[9px] text-emerald-600">Income minus expenses</div>
+  </div>
 </div>
 {% elif can_access('operations_view') %}
 <div class="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
@@ -91,15 +114,19 @@
       </dl>
     </div>
 
-    {% if can_access('finances_view') or can_access('reserves_view') %}
-    <div class="bg-white rounded-xl border p-5">
-      <h2 class="font-semibold text-sm mb-3">Company Finances</h2>
-      <dl class="space-y-2 text-xs">
+    {% if can_access('reserves_view') %}
+    <details class="bg-white rounded-xl border p-5">
+      <summary class="cursor-pointer list-none font-semibold text-sm flex items-center justify-between">
+        <span>Bank & Reserves</span>
+        <span class="text-slate-400 text-xs">▼</span>
+      </summary>
+      <dl class="space-y-2 text-xs mt-3 pt-3 border-t">
         <div class="flex justify-between"><dt class="text-slate-400">Stanbic Bank</dt><dd class="font-bold">{{ position.bank_balance | money }}</dd></div>
         <div class="flex justify-between"><dt class="text-slate-400">Reserves</dt><dd>{{ position.reserves | money }}</dd></div>
         <div class="flex justify-between"><dt class="text-slate-400">Total Available</dt><dd class="font-bold text-hive-700">{{ position.total_available | money }}</dd></div>
       </dl>
-    </div>
+      <a href="{{ url_for('reserves') }}" class="inline-block mt-3 text-[10px] text-hive-600 hover:underline">Manage on Reserves page →</a>
+    </details>
     {% endif %}
   </div>
 

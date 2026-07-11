@@ -156,18 +156,24 @@ def dashboard_stats(conn, projects):
     company = conn.execute("SELECT * FROM company_settings WHERE id = 1").fetchone()
     financials = company_total_profit(conn, projects)
     return {
-        "total_contracts": sum(p["contract_amount"] for p in projects),
-        "total_received": sum(p["total_received"] for p in projects),
-        "total_expenses": sum(p["total_expenses"] for p in projects),
         "ongoing": sum(1 for p in projects if p["status"] == "ongoing"),
         "pending": sum(1 for p in projects if p["status"] == "pending"),
         "completed": sum(1 for p in projects if p["status"] == "completed"),
         "position": position,
         "reserves": total_reserves(conn),
-        "investment_profit": financials["investment_profit"],
-        "total_revenue": financials["total_revenue"],
-        "profit": financials["total_profit"],
         "monthly_profit_target": company["monthly_profit_target"] if company else 0,
+        # Financial summary
+        "total_contracts": financials["total_contract_value"],
+        "total_received": financials["cash_from_projects"],
+        "total_income": financials["total_income"],
+        "total_expenses": financials["total_expenses"],
+        "remaining_to_collect": financials["remaining_to_collect"],
+        "investment_profit": financials["investment_profit"],
+        "total_revenue": financials["total_contract_value"],
+        "profit": financials["net_profit"],
+        "net_profit": financials["net_profit"],
+        "project_expenses": financials["project_expenses"],
+        "company_expenses": financials["company_expenses"],
     }
 
 
